@@ -1,0 +1,9 @@
+[package]
+name = "x-select"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+termion = "1.5.6"
+termios = "0.3.3"
+scopeguard = "1.1.0"
