@@ -14,21 +14,22 @@ use termios;
 
 fn main() -> io::Result<()> {
     let f = fs::OpenOptions::new().read(true).open("/dev/tty")?;
+
     let mut ios = termios::Termios::from_fd(f.as_raw_fd())?;
     let prev_ios = ios;
-    termios::cfmakeraw(&mut ios);
+    ios.c_lflag &= !(termios::ECHO | termios::ICANON);
     termios::tcsetattr(f.as_raw_fd(), termios::TCSANOW, &ios)?;
 
     let mut guarded = scopeguard::guard(f, |f| {
         termios::tcsetattr(f.as_raw_fd(), termios::TCSANOW, &prev_ios).unwrap();
     });
+
     let stdin = io::stdin();
     let mut stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
 
     let mut stdout = io::stdout();
 
     let mut options = Vec::new();
-
     let mut cursor = 0;
 
     if let Some(line) = stdin.next() {
