@@ -159,6 +159,11 @@ impl<R: Iterator<Item = String>> Stream<R> {
             let next = self.inner.next()?;
             self.store.push(next);
         }
+
+        if self.store.len() <= self.cursor {
+            self.cursor -= 1;
+        }
+
         self.current()
     }
 }
@@ -169,15 +174,21 @@ mod tests {
 
     use std::io::Seek;
 
-    #[test]
-    fn test_stream_navigation() {
+    fn stdin(s: &str) -> impl Iterator<Item = String> {
         let mut stdin = io::Cursor::new(Vec::new());
-        writeln!(stdin, "one\ntwo\nthree").unwrap();
+        let _ = stdin.write(s.as_bytes()).unwrap();
         stdin.seek(io::SeekFrom::Start(0)).unwrap();
-        let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
+        BufReader::new(stdin).lines().map(|x| x.unwrap())
+    }
 
-        let mut stream = Stream::from(stdin).expect("stdin has values");
+    #[test]
+    fn stream_from_empty_is_none() {
+        assert!(Stream::from(stdin("")).is_none());
+    }
 
+    #[test]
+    fn stream_basic_navigation() {
+        let mut stream = Stream::from(stdin("one\ntwo\nthree")).unwrap();
         assert_eq!(stream.current(), Some("one"));
         assert_eq!(stream.move_right(), Some("two"));
         assert_eq!(stream.move_right(), Some("three"));
@@ -191,18 +202,30 @@ mod tests {
     }
 
     #[test]
-    fn test_stream_remove() {
-        let mut stdin = io::Cursor::new(Vec::new());
-        writeln!(stdin, "one\ntwo\nthree").unwrap();
-        stdin.seek(io::SeekFrom::Start(0)).unwrap();
-        let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
-
-        let mut stream = Stream::from(stdin).expect("stdin has values");
-
+    fn stream_remove_last_more_to_read() {
+        let mut stream = Stream::from(stdin("one\ntwo")).unwrap();
         assert_eq!(stream.remove(), Some("two"));
+    }
+
+    #[test]
+    fn stream_remove_last_no_more_to_read() {
+        let mut stream = Stream::from(stdin("one\ntwo")).unwrap();
+        assert_eq!(stream.move_right(), Some("two"));
+        assert_eq!(stream.remove(), Some("one"));
+    }
+
+    #[test]
+    fn stream_remove_mid_ok() {
+        let mut stream = Stream::from(stdin("one\ntwo\nthree")).unwrap();
+        assert_eq!(stream.move_right(), Some("two"));
         assert_eq!(stream.move_right(), Some("three"));
         assert_eq!(stream.move_left(), Some("two"));
         assert_eq!(stream.remove(), Some("three"));
+    }
+
+    #[test]
+    fn stream_remove_all() {
+        let mut stream = Stream::from(stdin("one")).unwrap();
         assert_eq!(stream.remove(), None);
     }
 }
