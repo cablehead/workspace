@@ -17,102 +17,6 @@ use scopeguard;
 
 use termios;
 
-struct Stream<R> {
-    inner: R,
-    store: Vec<String>,
-    cursor: usize,
-}
-
-impl<R: Iterator<Item = String>> Stream<R> {
-    // Returns None if the provided iter has no values
-    pub fn from(mut inner: R) -> Option<Stream<R>> {
-        // this will block until an initial item has been read
-        let s = inner.next()?;
-
-        let store: Vec<String> = vec![s];
-
-        Some(Stream {
-            inner: inner,
-            store: store,
-            cursor: 0,
-        })
-    }
-
-    // None means the whole input stream has been consumed
-    pub fn current(&self) -> Option<&str> {
-        Some(&self.store[self.cursor][..])
-    }
-
-    // None means we are at the boundary, so the cursor cannot be moved
-    pub fn move_right(&mut self) -> Option<&str> {
-        if self.cursor < self.store.len() - 1 {
-            self.cursor += 1;
-            return self.current();
-        }
-
-        let next = self.inner.next()?;
-        self.store.push(next);
-        self.cursor += 1;
-        self.current()
-    }
-
-    // None means we are at the boundary, so the cursor cannot be moved
-    pub fn move_left(&mut self) -> Option<&str> {
-        if self.cursor == 0 {
-            return None;
-        }
-        self.cursor -= 1;
-        self.current()
-    }
-
-    // None means the whole input stream has been consumed
-    pub fn remove(&mut self) -> Option<&str> {
-        self.store.remove(self.cursor);
-        if self.store.len() == 0 {
-            let next = self.inner.next()?;
-            self.store.push(next);
-        }
-        self.current()
-    }
-}
-
-#[test]
-fn test_stream_navigation() {
-    let mut stdin = io::Cursor::new(Vec::new());
-    writeln!(stdin, "one\ntwo\nthree").unwrap();
-    stdin.seek(io::SeekFrom::Start(0)).unwrap();
-    let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
-
-    let mut stream = Stream::from(stdin).expect("stdin has values");
-
-    assert_eq!(stream.current(), Some("one"));
-    assert_eq!(stream.move_right(), Some("two"));
-    assert_eq!(stream.move_right(), Some("three"));
-    assert_eq!(stream.move_right(), None);
-    assert_eq!(stream.move_left(), Some("two"));
-    assert_eq!(stream.move_left(), Some("one"));
-    assert_eq!(stream.move_left(), None);
-    assert_eq!(stream.move_right(), Some("two"));
-    assert_eq!(stream.move_right(), Some("three"));
-    assert_eq!(stream.move_right(), None);
-}
-
-#[test]
-fn test_stream_remove() {
-    let mut stdin = io::Cursor::new(Vec::new());
-    writeln!(stdin, "one\ntwo\nthree").unwrap();
-    stdin.seek(io::SeekFrom::Start(0)).unwrap();
-    let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
-
-    let mut stream = Stream::from(stdin).expect("stdin has values");
-
-    assert_eq!(stream.remove(), Some("two"));
-    assert_eq!(stream.move_right(), Some("three"));
-    assert_eq!(stream.move_left(), Some("two"));
-    assert_eq!(stream.remove(), Some("three"));
-    assert_eq!(stream.remove(), None);
-}
-
 fn main() -> io::Result<()> {
     let matches = App::new("x-select")
         .version("0.0.1")
@@ -216,4 +120,100 @@ fn main() -> io::Result<()> {
     */
 
     Ok(())
+}
+
+struct Stream<R> {
+    inner: R,
+    store: Vec<String>,
+    cursor: usize,
+}
+
+impl<R: Iterator<Item = String>> Stream<R> {
+    // Returns None if the provided iter has no values
+    pub fn from(mut inner: R) -> Option<Stream<R>> {
+        // this will block until an initial item has been read
+        let s = inner.next()?;
+
+        let store: Vec<String> = vec![s];
+
+        Some(Stream {
+            inner: inner,
+            store: store,
+            cursor: 0,
+        })
+    }
+
+    // None means the whole input stream has been consumed
+    pub fn current(&self) -> Option<&str> {
+        Some(&self.store[self.cursor][..])
+    }
+
+    // None means we are at the boundary, so the cursor cannot be moved
+    pub fn move_right(&mut self) -> Option<&str> {
+        if self.cursor < self.store.len() - 1 {
+            self.cursor += 1;
+            return self.current();
+        }
+
+        let next = self.inner.next()?;
+        self.store.push(next);
+        self.cursor += 1;
+        self.current()
+    }
+
+    // None means we are at the boundary, so the cursor cannot be moved
+    pub fn move_left(&mut self) -> Option<&str> {
+        if self.cursor == 0 {
+            return None;
+        }
+        self.cursor -= 1;
+        self.current()
+    }
+
+    // None means the whole input stream has been consumed
+    pub fn remove(&mut self) -> Option<&str> {
+        self.store.remove(self.cursor);
+        if self.store.len() == 0 {
+            let next = self.inner.next()?;
+            self.store.push(next);
+        }
+        self.current()
+    }
+}
+
+#[test]
+fn test_stream_navigation() {
+    let mut stdin = io::Cursor::new(Vec::new());
+    writeln!(stdin, "one\ntwo\nthree").unwrap();
+    stdin.seek(io::SeekFrom::Start(0)).unwrap();
+    let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
+
+    let mut stream = Stream::from(stdin).expect("stdin has values");
+
+    assert_eq!(stream.current(), Some("one"));
+    assert_eq!(stream.move_right(), Some("two"));
+    assert_eq!(stream.move_right(), Some("three"));
+    assert_eq!(stream.move_right(), None);
+    assert_eq!(stream.move_left(), Some("two"));
+    assert_eq!(stream.move_left(), Some("one"));
+    assert_eq!(stream.move_left(), None);
+    assert_eq!(stream.move_right(), Some("two"));
+    assert_eq!(stream.move_right(), Some("three"));
+    assert_eq!(stream.move_right(), None);
+}
+
+#[test]
+fn test_stream_remove() {
+    let mut stdin = io::Cursor::new(Vec::new());
+    writeln!(stdin, "one\ntwo\nthree").unwrap();
+    stdin.seek(io::SeekFrom::Start(0)).unwrap();
+    let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
+
+    let mut stream = Stream::from(stdin).expect("stdin has values");
+
+    assert_eq!(stream.remove(), Some("two"));
+    assert_eq!(stream.move_right(), Some("three"));
+    assert_eq!(stream.move_left(), Some("two"));
+    assert_eq!(stream.remove(), Some("three"));
+    assert_eq!(stream.remove(), None);
 }
