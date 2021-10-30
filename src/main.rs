@@ -3,17 +3,17 @@ use std::fs;
 use std::io;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::io::Seek;
 use std::io::Write;
 use std::iter::Iterator;
 use std::os::unix::io::AsRawFd;
 
-use clap::{App, Arg};
+use clap::App;
+use clap::Arg;
 
 use scopeguard;
 
-// use termion::event::Key;
-// use termion::input::TermRead;
+use termion::event::Key;
+use termion::input::TermRead;
 
 use termios;
 
@@ -45,32 +45,27 @@ fn main() -> io::Result<()> {
     }
 
     let f = fs::OpenOptions::new().read(true).open("/dev/tty")?;
-
     let mut ios = termios::Termios::from_fd(f.as_raw_fd())?;
     let prev_ios = ios;
     ios.c_lflag &= !(termios::ECHO | termios::ICANON);
     termios::tcsetattr(f.as_raw_fd(), termios::TCSANOW, &ios)?;
-
-    let _guarded = scopeguard::guard(f, |f| {
+    let mut guarded = scopeguard::guard(f, |f| {
         termios::tcsetattr(f.as_raw_fd(), termios::TCSANOW, &prev_ios).unwrap();
     });
 
     let stdin = io::stdin();
-    let mut stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
+    let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
 
     let mut stdout = io::stdout();
 
-    let mut options = Vec::new();
-    let cursor = 0;
-
-    if let Some(line) = stdin.next() {
-        options.push(line);
-        writeln!(stdout, "{}", options[cursor]).unwrap();
-    } else {
+    let stream = Stream::from(stdin);
+    if stream.is_none() {
         return Ok(());
     }
+    let mut stream = stream.unwrap();
 
-    /*
+    writeln!(stdout, "{}", stream.current().unwrap()).unwrap();
+
     for key in guarded.by_ref().keys() {
         let key = key.unwrap();
 
@@ -80,36 +75,24 @@ fn main() -> io::Result<()> {
             }
 
             Key::Char(x) if capture_keys.contains(&x) => {
-                eprintln!("{}:{}", x, options[cursor]);
-                options.remove(cursor);
-                if cursor >= options.len() {
-                    if let Some(line) = stdin.next() {
-                        options.push(line);
-                    } else {
-                        return Ok(());
-                    }
+                eprintln!("{}:{}", x, stream.current().unwrap());
+                if let Some(item) = stream.remove() {
+                    writeln!(stdout, "{}", item).unwrap();
+                } else {
+                    break;
                 }
-                writeln!(stdout, "{}", options[cursor]).unwrap();
             }
 
             Key::Left => {
-                if cursor == 0 {
-                    continue;
+                if let Some(item) = stream.move_left() {
+                    writeln!(stdout, "{}", item).unwrap();
                 }
-                cursor -= 1;
-                writeln!(stdout, "{}", options[cursor]).unwrap();
             }
 
             Key::Right => {
-                cursor += 1;
-                if cursor >= options.len() {
-                    if let Some(line) = stdin.next() {
-                        options.push(line);
-                    } else {
-                        return Ok(());
-                    }
+                if let Some(item) = stream.move_right() {
+                    writeln!(stdout, "{}", item).unwrap();
                 }
-                writeln!(stdout, "{}", options[cursor]).unwrap();
             }
 
             _ => {
@@ -117,7 +100,6 @@ fn main() -> io::Result<()> {
             }
         }
     }
-    */
 
     Ok(())
 }
@@ -181,39 +163,46 @@ impl<R: Iterator<Item = String>> Stream<R> {
     }
 }
 
-#[test]
-fn test_stream_navigation() {
-    let mut stdin = io::Cursor::new(Vec::new());
-    writeln!(stdin, "one\ntwo\nthree").unwrap();
-    stdin.seek(io::SeekFrom::Start(0)).unwrap();
-    let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let mut stream = Stream::from(stdin).expect("stdin has values");
+    use std::io::Seek;
 
-    assert_eq!(stream.current(), Some("one"));
-    assert_eq!(stream.move_right(), Some("two"));
-    assert_eq!(stream.move_right(), Some("three"));
-    assert_eq!(stream.move_right(), None);
-    assert_eq!(stream.move_left(), Some("two"));
-    assert_eq!(stream.move_left(), Some("one"));
-    assert_eq!(stream.move_left(), None);
-    assert_eq!(stream.move_right(), Some("two"));
-    assert_eq!(stream.move_right(), Some("three"));
-    assert_eq!(stream.move_right(), None);
-}
+    #[test]
+    fn test_stream_navigation() {
+        let mut stdin = io::Cursor::new(Vec::new());
+        writeln!(stdin, "one\ntwo\nthree").unwrap();
+        stdin.seek(io::SeekFrom::Start(0)).unwrap();
+        let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
 
-#[test]
-fn test_stream_remove() {
-    let mut stdin = io::Cursor::new(Vec::new());
-    writeln!(stdin, "one\ntwo\nthree").unwrap();
-    stdin.seek(io::SeekFrom::Start(0)).unwrap();
-    let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
+        let mut stream = Stream::from(stdin).expect("stdin has values");
 
-    let mut stream = Stream::from(stdin).expect("stdin has values");
+        assert_eq!(stream.current(), Some("one"));
+        assert_eq!(stream.move_right(), Some("two"));
+        assert_eq!(stream.move_right(), Some("three"));
+        assert_eq!(stream.move_right(), None);
+        assert_eq!(stream.move_left(), Some("two"));
+        assert_eq!(stream.move_left(), Some("one"));
+        assert_eq!(stream.move_left(), None);
+        assert_eq!(stream.move_right(), Some("two"));
+        assert_eq!(stream.move_right(), Some("three"));
+        assert_eq!(stream.move_right(), None);
+    }
 
-    assert_eq!(stream.remove(), Some("two"));
-    assert_eq!(stream.move_right(), Some("three"));
-    assert_eq!(stream.move_left(), Some("two"));
-    assert_eq!(stream.remove(), Some("three"));
-    assert_eq!(stream.remove(), None);
+    #[test]
+    fn test_stream_remove() {
+        let mut stdin = io::Cursor::new(Vec::new());
+        writeln!(stdin, "one\ntwo\nthree").unwrap();
+        stdin.seek(io::SeekFrom::Start(0)).unwrap();
+        let stdin = BufReader::new(stdin).lines().map(|x| x.unwrap());
+
+        let mut stream = Stream::from(stdin).expect("stdin has values");
+
+        assert_eq!(stream.remove(), Some("two"));
+        assert_eq!(stream.move_right(), Some("three"));
+        assert_eq!(stream.move_left(), Some("two"));
+        assert_eq!(stream.remove(), Some("three"));
+        assert_eq!(stream.remove(), None);
+    }
 }
