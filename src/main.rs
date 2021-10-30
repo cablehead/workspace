@@ -1,9 +1,12 @@
+use std::collections::HashSet;
 use std::fs;
 use std::io;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
+
+use clap::{App, Arg};
 
 use scopeguard;
 
@@ -13,6 +16,32 @@ use termion::input::TermRead;
 use termios;
 
 fn main() -> io::Result<()> {
+    let matches = App::new("x-select")
+        .version("0.0.1")
+        .about("interactively explore an input stream")
+        .arg(
+            Arg::new("keys")
+                .short('k')
+                .long("capture-keys")
+                .about("keys to capture items")
+                .takes_value(true)
+                .multiple_values(true)
+                .use_delimiter(true),
+        )
+        .get_matches();
+
+    let mut capture_keys = HashSet::new();
+
+    if let Some(keys) = matches.values_of("keys") {
+        for k in keys {
+            if k.len() > 1 {
+                eprintln!("capture keys should be single characters: '{}'", k);
+                std::process::exit(1);
+            }
+            capture_keys.insert(k.chars().next().unwrap());
+        }
+    }
+
     let f = fs::OpenOptions::new().read(true).open("/dev/tty")?;
 
     let mut ios = termios::Termios::from_fd(f.as_raw_fd())?;
@@ -46,6 +75,20 @@ fn main() -> io::Result<()> {
             Key::Char('q') => {
                 break;
             }
+
+            Key::Char(x) if capture_keys.contains(&x) => {
+                eprintln!("{}:{}", x, options[cursor]);
+                options.remove(cursor);
+                if cursor >= options.len() {
+                    if let Some(line) = stdin.next() {
+                        options.push(line);
+                    } else {
+                        return Ok(());
+                    }
+                }
+                writeln!(stdout, "{}", options[cursor]).unwrap();
+            }
+
             Key::Left => {
                 if cursor == 0 {
                     continue;
@@ -53,6 +96,7 @@ fn main() -> io::Result<()> {
                 cursor -= 1;
                 writeln!(stdout, "{}", options[cursor]).unwrap();
             }
+
             Key::Right => {
                 cursor += 1;
                 if cursor >= options.len() {
@@ -64,7 +108,10 @@ fn main() -> io::Result<()> {
                 }
                 writeln!(stdout, "{}", options[cursor]).unwrap();
             }
-            _ => {}
+
+            _ => {
+                println!("{:?}", key);
+            }
         }
     }
 
