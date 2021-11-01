@@ -22,25 +22,45 @@ fn main() -> io::Result<()> {
         .version("0.0.1")
         .about("interactively explore an input stream")
         .arg(
-            Arg::new("keys")
-                .short('k')
-                .long("capture-keys")
-                .about("keys to capture items")
+            Arg::new("accept-keys")
+                .short('a')
+                .long("accept-keys")
+                .about("keys to accept items")
+                .takes_value(true)
+                .multiple_values(true)
+                .use_delimiter(true),
+        )
+        .arg(
+            Arg::new("decline-keys")
+                .short('d')
+                .long("decline-keys")
+                .about("keys to decline items")
                 .takes_value(true)
                 .multiple_values(true)
                 .use_delimiter(true),
         )
         .get_matches();
 
-    let mut capture_keys = HashSet::new();
+    let mut accept_keys = HashSet::new();
+    let mut decline_keys = HashSet::new();
 
-    if let Some(keys) = matches.values_of("keys") {
+    if let Some(keys) = matches.values_of("accept_keys") {
         for k in keys {
             if k.len() > 1 {
                 eprintln!("capture keys should be single characters: '{}'", k);
                 std::process::exit(1);
             }
-            capture_keys.insert(k.chars().next().unwrap());
+            accept_keys.insert(k.chars().next().unwrap());
+        }
+    }
+
+    if let Some(keys) = matches.values_of("decline_keys") {
+        for k in keys {
+            if k.len() > 1 {
+                eprintln!("capture keys should be single characters: '{}'", k);
+                std::process::exit(1);
+            }
+            decline_keys.insert(k.chars().next().unwrap());
         }
     }
 
@@ -74,13 +94,17 @@ fn main() -> io::Result<()> {
                 break;
             }
 
-            Key::Char(x) if capture_keys.contains(&x) => {
+            Key::Char(x) if accept_keys.contains(&x) => {
                 eprintln!("{}:{}", x, stream.current().unwrap());
                 if let Some(item) = stream.remove() {
                     writeln!(stdout, "{}", item).unwrap();
                 } else {
                     break;
                 }
+            }
+
+            Key::Char(x) if decline_keys.contains(&x) => {
+                eprintln!("{}:{}", x, stream.current().unwrap());
             }
 
             Key::Left => {
@@ -96,7 +120,7 @@ fn main() -> io::Result<()> {
             }
 
             _ => {
-                println!("{:?}", key);
+                // println!("{:?}", key);
             }
         }
     }
