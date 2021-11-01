@@ -44,7 +44,8 @@ fn main() -> io::Result<()> {
     let mut accept_keys = HashSet::new();
     let mut decline_keys = HashSet::new();
 
-    if let Some(keys) = matches.values_of("accept_keys") {
+    // TODO: need to get a test on accept / decline
+    if let Some(keys) = matches.values_of("accept-keys") {
         for k in keys {
             if k.len() > 1 {
                 eprintln!("capture keys should be single characters: '{}'", k);
@@ -54,7 +55,7 @@ fn main() -> io::Result<()> {
         }
     }
 
-    if let Some(keys) = matches.values_of("decline_keys") {
+    if let Some(keys) = matches.values_of("decline-keys") {
         for k in keys {
             if k.len() > 1 {
                 eprintln!("capture keys should be single characters: '{}'", k);
@@ -96,15 +97,15 @@ fn main() -> io::Result<()> {
 
             Key::Char(x) if accept_keys.contains(&x) => {
                 eprintln!("{}:{}", x, stream.current().unwrap());
+            }
+
+            Key::Char(x) if decline_keys.contains(&x) => {
+                eprintln!("{}:{}", x, stream.current().unwrap());
                 if let Some(item) = stream.remove() {
                     writeln!(stdout, "{}", item).unwrap();
                 } else {
                     break;
                 }
-            }
-
-            Key::Char(x) if decline_keys.contains(&x) => {
-                eprintln!("{}:{}", x, stream.current().unwrap());
             }
 
             Key::Left => {
