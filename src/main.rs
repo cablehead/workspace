@@ -22,46 +22,46 @@ fn main() -> io::Result<()> {
         .version("0.0.1")
         .about("interactively explore an input stream")
         .arg(
-            Arg::new("accept-keys")
-                .short('a')
-                .long("accept-keys")
-                .about("keys to accept items")
+            Arg::new("keep-keys")
+                .short('k')
+                .long("keep-keys")
+                .about("record the selected item, but keep it in the stream")
                 .takes_value(true)
                 .multiple_values(true)
                 .use_delimiter(true),
         )
         .arg(
-            Arg::new("decline-keys")
-                .short('d')
-                .long("decline-keys")
-                .about("keys to decline items")
+            Arg::new("pop-keys")
+                .short('p')
+                .long("pop-keys")
+                .about("record the selected item and remove it from the stream")
                 .takes_value(true)
                 .multiple_values(true)
                 .use_delimiter(true),
         )
         .get_matches();
 
-    let mut accept_keys = HashSet::new();
-    let mut decline_keys = HashSet::new();
+    let mut keep_keys = HashSet::new();
+    let mut pop_keys = HashSet::new();
 
-    // TODO: need to get a test on accept / decline
-    if let Some(keys) = matches.values_of("accept-keys") {
+    // TODO: need to get a test on keep / pop
+    if let Some(keys) = matches.values_of("keep-keys") {
         for k in keys {
             if k.len() > 1 {
                 eprintln!("capture keys should be single characters: '{}'", k);
                 std::process::exit(1);
             }
-            accept_keys.insert(k.chars().next().unwrap());
+            keep_keys.insert(k.chars().next().unwrap());
         }
     }
 
-    if let Some(keys) = matches.values_of("decline-keys") {
+    if let Some(keys) = matches.values_of("pop-keys") {
         for k in keys {
             if k.len() > 1 {
                 eprintln!("capture keys should be single characters: '{}'", k);
                 std::process::exit(1);
             }
-            decline_keys.insert(k.chars().next().unwrap());
+            pop_keys.insert(k.chars().next().unwrap());
         }
     }
 
@@ -95,11 +95,11 @@ fn main() -> io::Result<()> {
                 break;
             }
 
-            Key::Char(x) if accept_keys.contains(&x) => {
+            Key::Char(x) if keep_keys.contains(&x) => {
                 eprintln!("{}:{}", x, stream.current().unwrap());
             }
 
-            Key::Char(x) if decline_keys.contains(&x) => {
+            Key::Char(x) if pop_keys.contains(&x) => {
                 eprintln!("{}:{}", x, stream.current().unwrap());
                 if let Some(item) = stream.remove() {
                     writeln!(stdout, "{}", item).unwrap();
