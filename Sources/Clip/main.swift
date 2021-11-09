@@ -4,7 +4,7 @@ let pasteboard = NSPasteboard.general
 var changeCount = pasteboard.changeCount
 
 while true {
-    let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+    let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
         if changeCount != pasteboard.changeCount {
             let sourceApp: NSRunningApplication? = NSWorkspace.shared.frontmostApplication
             let source = sourceApp?.bundleIdentifier ?? "unknown"
