@@ -27,12 +27,7 @@ fn create(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
-    let conn = Connection::open("cats.db")?;
-
-    create(&conn)?;
-
-    /*
+fn insert(conn: &Connection) -> Result<()> {
     let mut cat_colors = HashMap::new();
     cat_colors.insert(String::from("Blue"), vec!["Tigger", "Sammy"]);
     cat_colors.insert(String::from("Black"), vec!["Oreo", "Biscuit"]);
@@ -50,7 +45,17 @@ fn main() -> Result<()> {
             )?;
         }
     }
-    */
+
+    Ok(())
+}
+
+
+fn main() -> Result<()> {
+    let conn = Connection::open("cats.db")?;
+
+    create(&conn)?;
+
+    // insert(&conn)?;
 
     let mut stmt = conn.prepare(
         "SELECT c.name, cc.name from cats c
