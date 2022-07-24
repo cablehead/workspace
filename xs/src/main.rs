@@ -26,6 +26,7 @@ enum Commands {
 
 #[derive(Debug)]
 struct Cat {
+    id: i32,
     name: String,
     color: String,
 }
@@ -79,15 +80,16 @@ fn insert(conn: &Connection, name: &String) -> Result<()> {
 
 fn list(conn: &Connection) -> Result<()> {
     let mut stmt = conn.prepare(
-        "SELECT c.name, cc.name from cats c
+        "SELECT c.id, c.name, cc.name from cats c
          INNER JOIN cat_colors cc
          ON cc.id = c.color_id;",
     )?;
 
     let cats = stmt.query_map([], |row| {
         Ok(Cat {
-            name: row.get(0)?,
-            color: row.get(1)?,
+            id: row.get(0)?,
+            name: row.get(1)?,
+            color: row.get(2)?,
         })
     })?;
 
