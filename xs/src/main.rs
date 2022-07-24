@@ -1,5 +1,15 @@
-use rusqlite::{Connection, Result};
 use std::collections::HashMap;
+
+use clap::Parser;
+
+use rusqlite::{Connection, Result};
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap(value_parser)]
+    path: String,
+}
 
 #[derive(Debug)]
 struct Cat {
@@ -49,9 +59,9 @@ fn insert(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-
 fn main() -> Result<()> {
-    let conn = Connection::open("cats.db")?;
+    let args = Args::parse();
+    let conn = Connection::open(args.path)?;
 
     create(&conn)?;
 
