@@ -1,14 +1,27 @@
-use std::collections::HashMap;
-
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 use rusqlite::{Connection, Result};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
+#[clap(propagate_version = true)]
 struct Args {
     #[clap(value_parser)]
     path: String,
+
+    #[clap(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Add Cats
+    Add {
+        #[clap(value_parser)]
+        name: String,
+    },
+    /// List Cats
+    List {},
 }
 
 #[derive(Debug)]
@@ -23,23 +36,13 @@ fn main() -> Result<()> {
 
     create(&conn)?;
 
-    // insert(&conn)?;
-
-    let mut stmt = conn.prepare(
-        "SELECT c.name, cc.name from cats c
-         INNER JOIN cat_colors cc
-         ON cc.id = c.color_id;",
-    )?;
-
-    let cats = stmt.query_map([], |row| {
-        Ok(Cat {
-            name: row.get(0)?,
-            color: row.get(1)?,
-        })
-    })?;
-
-    for cat in cats {
-        println!("Found cat {:?}", cat);
+    match &args.command {
+        Commands::Add { name } => {
+            insert(&conn, &name)?;
+        }
+        Commands::List {} => {
+            list(&conn)?;
+        }
     }
 
     Ok(())
@@ -65,23 +68,31 @@ fn create(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn insert(conn: &Connection) -> Result<()> {
-    let mut cat_colors = HashMap::new();
-    cat_colors.insert(String::from("Blue"), vec!["Tigger", "Sammy"]);
-    cat_colors.insert(String::from("Black"), vec!["Oreo", "Biscuit"]);
-    for (color, catnames) in &cat_colors {
-        conn.execute(
-            "INSERT INTO cat_colors (name) values (?1)",
-            &[&color.to_string()],
-        )?;
-        let last_id: String = conn.last_insert_rowid().to_string();
+fn insert(conn: &Connection, name: &String) -> Result<()> {
+    conn.execute(
+        "INSERT INTO cats (name, color_id) values (?1, ?2)",
+        &[&name.to_string(), "1"],
+    )?;
 
-        for cat in catnames {
-            conn.execute(
-                "INSERT INTO cats (name, color_id) values (?1, ?2)",
-                &[&cat.to_string(), &last_id],
-            )?;
-        }
+    Ok(())
+}
+
+fn list(conn: &Connection) -> Result<()> {
+    let mut stmt = conn.prepare(
+        "SELECT c.name, cc.name from cats c
+         INNER JOIN cat_colors cc
+         ON cc.id = c.color_id;",
+    )?;
+
+    let cats = stmt.query_map([], |row| {
+        Ok(Cat {
+            name: row.get(0)?,
+            color: row.get(1)?,
+        })
+    })?;
+
+    for cat in cats {
+        println!("Found cat {:?}", cat);
     }
 
     Ok(())
