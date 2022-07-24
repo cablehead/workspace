@@ -15,20 +15,19 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Add Cats
+    /// Add item
     Add {
         #[clap(value_parser)]
         name: String,
     },
-    /// List Cats
+    /// List items
     List {},
 }
 
 #[derive(Debug)]
-struct Cat {
+struct Item {
     id: i32,
-    name: String,
-    color: String,
+    topic: String,
 }
 
 fn main() -> Result<()> {
@@ -51,18 +50,22 @@ fn main() -> Result<()> {
 
 fn create(conn: &Connection) -> Result<()> {
     conn.execute(
-        "create table if not exists cat_colors (
-             id integer primary key,
-             name text not null unique
-         )",
-        [],
-    )?;
-    conn.execute(
-        "create table if not exists cats (
-             id integer primary key,
-             name text not null,
-             color_id integer not null references cat_colors(id)
-         )",
+        /*
+        "CREATE TABLE IF NOT EXISTS stream (
+           id INTEGER PRIMARY KEY,
+           stamp INTEGER NOT NULL,
+           source_id INTEGER,
+           parent_id INTEGER,
+           topic TEXT NOT NULL,
+           out TEXT,
+           err TEXT,
+           code INTEGER
+        )",
+        */
+        "CREATE TABLE IF NOT EXISTS stream (
+           id INTEGER PRIMARY KEY,
+           topic TEXT NOT NULL
+        )",
         [],
     )?;
 
@@ -71,8 +74,8 @@ fn create(conn: &Connection) -> Result<()> {
 
 fn insert(conn: &Connection, name: &String) -> Result<()> {
     conn.execute(
-        "INSERT INTO cats (name, color_id) values (?1, ?2)",
-        &[&name.to_string(), "1"],
+        "INSERT INTO stream (topic) values (?1)",
+        &[&name.to_string()],
     )?;
 
     Ok(())
@@ -80,21 +83,18 @@ fn insert(conn: &Connection, name: &String) -> Result<()> {
 
 fn list(conn: &Connection) -> Result<()> {
     let mut stmt = conn.prepare(
-        "SELECT c.id, c.name, cc.name from cats c
-         INNER JOIN cat_colors cc
-         ON cc.id = c.color_id;",
+        "select * from stream;"
     )?;
 
-    let cats = stmt.query_map([], |row| {
-        Ok(Cat {
+    let items = stmt.query_map([], |row| {
+        Ok(Item {
             id: row.get(0)?,
-            name: row.get(1)?,
-            color: row.get(2)?,
+            topic: row.get(1)?,
         })
     })?;
 
-    for cat in cats {
-        println!("Found cat {:?}", cat);
+    for item in items {
+        println!("Found item {:?}", item);
     }
 
     Ok(())
