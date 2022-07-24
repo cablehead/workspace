@@ -17,6 +17,34 @@ struct Cat {
     color: String,
 }
 
+fn main() -> Result<()> {
+    let args = Args::parse();
+    let conn = Connection::open(args.path)?;
+
+    create(&conn)?;
+
+    // insert(&conn)?;
+
+    let mut stmt = conn.prepare(
+        "SELECT c.name, cc.name from cats c
+         INNER JOIN cat_colors cc
+         ON cc.id = c.color_id;",
+    )?;
+
+    let cats = stmt.query_map([], |row| {
+        Ok(Cat {
+            name: row.get(0)?,
+            color: row.get(1)?,
+        })
+    })?;
+
+    for cat in cats {
+        println!("Found cat {:?}", cat);
+    }
+
+    Ok(())
+}
+
 fn create(conn: &Connection) -> Result<()> {
     conn.execute(
         "create table if not exists cat_colors (
@@ -54,34 +82,6 @@ fn insert(conn: &Connection) -> Result<()> {
                 &[&cat.to_string(), &last_id],
             )?;
         }
-    }
-
-    Ok(())
-}
-
-fn main() -> Result<()> {
-    let args = Args::parse();
-    let conn = Connection::open(args.path)?;
-
-    create(&conn)?;
-
-    // insert(&conn)?;
-
-    let mut stmt = conn.prepare(
-        "SELECT c.name, cc.name from cats c
-         INNER JOIN cat_colors cc
-         ON cc.id = c.color_id;",
-    )?;
-
-    let cats = stmt.query_map([], |row| {
-        Ok(Cat {
-            name: row.get(0)?,
-            color: row.get(1)?,
-        })
-    })?;
-
-    for cat in cats {
-        println!("Found cat {:?}", cat);
     }
 
     Ok(())
