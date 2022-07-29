@@ -32,6 +32,10 @@ enum Commands {
     Run {
         #[clap(value_parser)]
         id: i32,
+        #[clap(value_parser)]
+        command: String,
+        #[clap(value_parser)]
+        args: Vec<String>,
     },
 }
 
@@ -60,8 +64,8 @@ fn main() -> Result<()> {
         Commands::List {} => {
             list(&conn)?;
         }
-        Commands::Run { id } => {
-            run(&conn, &id)?;
+        Commands::Run { id, command, args } => {
+            run(&conn, &id, &command, &args)?;
         }
     }
 
@@ -128,7 +132,7 @@ fn list(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn run(conn: &Connection, id: &i32) -> Result<()> {
+fn run(conn: &Connection, id: &i32, command: &String, args: &Vec<String>) -> Result<()> {
     let mut stmt = conn.prepare("select * from stream where id = ?1 limit 1;")?;
     let item = stmt.query_row([id], create_item)?;
     if item.code != 0 {
@@ -136,5 +140,10 @@ fn run(conn: &Connection, id: &i32) -> Result<()> {
         std::process::exit(item.code);
     }
     println!("{}", (item.data).ok_or(std::fmt::Error)?);
+
+    let args = args.iter_mut();
+    let cmd = std::process::Command::new(&command).args(args);
+    println!("{:?}", &cmd);
+
     Ok(())
 }
