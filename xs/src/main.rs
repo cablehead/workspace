@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use clap::{Parser, Subcommand};
 
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection, types};
 
 use anyhow::Result;
 
@@ -22,7 +22,9 @@ enum Commands {
     /// Add item
     Add {
         #[clap(value_parser)]
-        name: String,
+        topic: String,
+        #[clap(value_parser)]
+        data: String,
     },
     /// List items
     List {},
@@ -33,6 +35,11 @@ struct Item {
     id: i32,
     topic: String,
     stamp: u128,
+    source_id: Option<i32>,
+    parent_id: Option<i32>,
+    data: Option<String>,
+    err: Option<String>,
+    code: i32,
 }
 
 fn main() -> Result<()> {
@@ -42,8 +49,8 @@ fn main() -> Result<()> {
     create(&conn)?;
 
     match &args.command {
-        Commands::Add { name } => {
-            insert(&conn, &name)?;
+        Commands::Add { topic, data } => {
+            add(&conn, &topic, &data)?;
         }
         Commands::List {} => {
             list(&conn)?;
@@ -55,21 +62,15 @@ fn main() -> Result<()> {
 
 fn create(conn: &Connection) -> Result<()> {
     conn.execute(
-        /*
         "CREATE TABLE IF NOT EXISTS stream (
            id INTEGER PRIMARY KEY,
+           topic TEXT NOT NULL,
+           stamp BLOB NOT NULL,
            source_id INTEGER,
            parent_id INTEGER,
-           topic TEXT NOT NULL,
-           out TEXT,
+           data TEXT,
            err TEXT,
-           code INTEGER
-        )",
-        */
-        "CREATE TABLE IF NOT EXISTS stream (
-           id INTEGER PRIMARY KEY,
-           topic TEXT NOT NULL,
-           stamp BLOB NOT NULL
+           code INTEGER NOT NULL
         )",
         [],
     )?;
@@ -77,11 +78,22 @@ fn create(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn insert(conn: &Connection, name: &String) -> Result<()> {
+fn add(conn: &Connection, topic: &String, data: &String) -> Result<()> {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
     conn.execute(
-        "INSERT INTO stream (topic, stamp) values (?1, ?2)",
-        params![&name.to_string(), stamp.to_le_bytes()],
+        "INSERT INTO stream
+        (topic, stamp, source_id, parent_id, data, err, code)
+        VALUES
+        (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            &topic.to_string(),
+            stamp.to_le_bytes(),
+            types::Null,
+            types::Null,
+            &data.to_string(),
+            types::Null,
+            0,
+        ],
     )?;
     Ok(())
 }
@@ -94,6 +106,11 @@ fn list(conn: &Connection) -> Result<()> {
             id: row.get(0)?,
             topic: row.get(1)?,
             stamp: u128::from_le_bytes(row.get(2)?),
+            source_id: row.get(3)?,
+            parent_id: row.get(4)?,
+            data: row.get(5)?,
+            err: row.get(6)?,
+            code: row.get(7)?,
         })
     })?;
 
