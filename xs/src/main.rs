@@ -2,7 +2,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use clap::{Parser, Subcommand};
 
-use rusqlite::{params, Connection, types};
+use rusqlite::{params, types, Connection, Row};
+use rusqlite;
 
 use anyhow::Result;
 
@@ -28,6 +29,10 @@ enum Commands {
     },
     /// List items
     List {},
+    Run {
+        #[clap(value_parser)]
+        id: i32,
+    },
 }
 
 #[derive(Debug)]
@@ -54,6 +59,9 @@ fn main() -> Result<()> {
         }
         Commands::List {} => {
             list(&conn)?;
+        }
+        Commands::Run { id } => {
+            run(&conn, &id)?;
         }
     }
 
@@ -98,10 +106,7 @@ fn add(conn: &Connection, topic: &String, data: &String) -> Result<()> {
     Ok(())
 }
 
-fn list(conn: &Connection) -> Result<()> {
-    let mut stmt = conn.prepare("select * from stream;")?;
-
-    let items = stmt.query_map([], |row| {
+fn create_item(row: &Row) -> rusqlite::Result<Item> {
         Ok(Item {
             id: row.get(0)?,
             topic: row.get(1)?,
@@ -112,11 +117,25 @@ fn list(conn: &Connection) -> Result<()> {
             err: row.get(6)?,
             code: row.get(7)?,
         })
-    })?;
 
+}
+
+fn list(conn: &Connection) -> Result<()> {
+    let mut stmt = conn.prepare("select * from stream;")?;
+    let items = stmt.query_map([], create_item)?;
     for item in items {
         println!("Found item {:?}", item);
     }
+    Ok(())
+}
 
+fn run(conn: &Connection, id: &i32) -> Result<()> {
+    let mut stmt = conn.prepare("select * from stream where id = ?1 limit 1;")?;
+    let item = stmt.query_row([id], create_item)?;
+    if item.code != 0 {
+        println!("code=={} TODO: output err", item.code);
+        std::process::exit(item.code);
+    }
+    println!("{}", (item.data).ok_or(std::fmt::Error)?);
     Ok(())
 }
