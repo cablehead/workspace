@@ -1,3 +1,5 @@
+use std::io::Write;
+use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use clap::{Parser, Subcommand};
@@ -139,11 +141,20 @@ fn run(conn: &Connection, id: &i32, command: &String, args: &Vec<String>) -> Res
         println!("code=={} TODO: output err", item.code);
         std::process::exit(item.code);
     }
-    println!("{}", (item.data).ok_or(std::fmt::Error)?);
 
-    let args = args.iter_mut();
-    let cmd = std::process::Command::new(&command).args(args);
-    println!("{:?}", &cmd);
+    let mut p = process::Command::new(command)
+        .args(args)
+        .stdin(process::Stdio::piped())
+        .stdout(process::Stdio::piped())
+        .spawn()?;
+    {
+        let mut stdin = p.stdin.take().unwrap();
+        stdin.write_all(item.data.unwrap().as_bytes())?;
+    }
+
+    let output = p.wait_with_output()?;
+
+    println!("{:?}", output);
 
     Ok(())
 }
