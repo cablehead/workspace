@@ -2,8 +2,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use clap::{Parser, Subcommand};
 
-use rusqlite::{params, types, Connection, Row};
 use rusqlite;
+use rusqlite::{params, types, Connection, Row};
 
 use anyhow::Result;
 
@@ -107,17 +107,16 @@ fn add(conn: &Connection, topic: &String, data: &String) -> Result<()> {
 }
 
 fn create_item(row: &Row) -> rusqlite::Result<Item> {
-        Ok(Item {
-            id: row.get(0)?,
-            topic: row.get(1)?,
-            stamp: u128::from_le_bytes(row.get(2)?),
-            source_id: row.get(3)?,
-            parent_id: row.get(4)?,
-            data: row.get(5)?,
-            err: row.get(6)?,
-            code: row.get(7)?,
-        })
-
+    Ok(Item {
+        id: row.get(0)?,
+        topic: row.get(1)?,
+        stamp: u128::from_le_bytes(row.get(2)?),
+        source_id: row.get(3)?,
+        parent_id: row.get(4)?,
+        data: row.get(5)?,
+        err: row.get(6)?,
+        code: row.get(7)?,
+    })
 }
 
 fn list(conn: &Connection) -> Result<()> {
