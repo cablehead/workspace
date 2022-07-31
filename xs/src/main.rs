@@ -27,13 +27,15 @@ enum Commands {
         #[clap(value_parser)]
         topic: String,
         #[clap(value_parser)]
-        data: String,
+        data: Vec<u8>,
     },
     /// List items
     List {},
     Run {
         #[clap(value_parser)]
         id: i32,
+        #[clap(value_parser)]
+        topic: String,
         #[clap(value_parser)]
         command: String,
         #[clap(value_parser)]
@@ -66,8 +68,13 @@ fn main() -> Result<()> {
         Commands::List {} => {
             list(&conn)?;
         }
-        Commands::Run { id, command, args } => {
-            run(&conn, &id, &command, &args)?;
+        Commands::Run {
+            id,
+            topic,
+            command,
+            args,
+        } => {
+            run(&conn, &id, &topic, &command, &args)?;
         }
     }
 
@@ -97,8 +104,8 @@ fn add(
     topic: &String,
     source_id: Option<i32>,
     parent_id: Option<i32>,
-    data: &String,
-    err: &Option<String>,
+    data: &Vec<u8>,
+    err: &Option<Vec<u8>>,
     code: i32,
 ) -> Result<()> {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
@@ -114,7 +121,7 @@ fn add(
             stamp.to_le_bytes(),
             source_id,
             parent_id,
-            &data.to_string(),
+            data,
             err,
             code,
         ],
@@ -144,7 +151,13 @@ fn list(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn run(conn: &Connection, id: &i32, command: &String, args: &Vec<String>) -> Result<()> {
+fn run(
+    conn: &Connection,
+    id: &i32,
+    topic: &String,
+    command: &String,
+    args: &Vec<String>,
+) -> Result<()> {
     let mut stmt = conn.prepare("select * from stream where id = ?1 limit 1;")?;
     let item = stmt.query_row([id], create_item)?;
     if item.code != 0 {
@@ -162,9 +175,17 @@ fn run(conn: &Connection, id: &i32, command: &String, args: &Vec<String>) -> Res
         stdin.write_all(item.data.unwrap().as_bytes())?;
     }
 
-    let output = p.wait_with_output()?;
+    let res = p.wait_with_output()?;
 
-    println!("{:?}", output);
+    add(
+        conn,
+        topic,
+        item.source_id.or(Some(item.id)),
+        Some(item.id),
+        &res.stdout,
+        &Some(res.stderr),
+        res.status.code().unwrap(),
+    )?;
 
     Ok(())
 }
