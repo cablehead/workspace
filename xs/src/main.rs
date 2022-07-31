@@ -120,6 +120,32 @@ fn main() -> Result<()> {
                 0,
             )?;
             println!("{:?}", id);
+
+            let mut stmt =
+                conn.prepare("select * from stream where topic = ? and source_id = ? limit 1;")?;
+            loop {
+                match stmt.query_row(params![response, id], create_item) {
+                    Ok(item) => {
+                        if let Some(data) = item.data {
+                            std::io::stdout().write_all(&data)?;
+                        }
+                        if let Some(err) = item.err {
+                            std::io::stderr().write_all(&err)?;
+                        }
+                        std::process::exit(item.code);
+                        break;
+                    }
+                    Err(err) => match err {
+                        rusqlite::Error::QueryReturnedNoRows => {
+                            println!("peace.");
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                        }
+                        _ => return Err(err).map_err(anyhow::Error::from),
+                    },
+                };
+            }
+
+            return Ok(());
         }
     }
 
@@ -213,6 +239,7 @@ fn run(
         .args(args)
         .stdin(process::Stdio::piped())
         .stdout(process::Stdio::piped())
+        .stderr(process::Stdio::piped())
         .spawn()?;
     {
         let mut stdin = p.stdin.take().unwrap();
