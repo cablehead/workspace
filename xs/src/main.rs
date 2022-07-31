@@ -154,21 +154,22 @@ fn add(
     code: i32,
 ) -> Result<i64> {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
-    let id = conn.prepare(
-        "INSERT INTO stream
+    let id = conn
+        .prepare(
+            "INSERT INTO stream
         (topic, stamp, source_id, parent_id, data, err, code)
         VALUES
         (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-    )?
-    .insert(params![
-        &topic.to_string(),
-        stamp.to_le_bytes(),
-        source_id,
-        parent_id,
-        data,
-        err,
-        code,
-    ])?;
+        )?
+        .insert(params![
+            &topic.to_string(),
+            stamp.to_le_bytes(),
+            source_id,
+            parent_id,
+            data,
+            err,
+            code,
+        ])?;
     Ok(id)
 }
 
