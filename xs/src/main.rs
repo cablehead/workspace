@@ -50,6 +50,15 @@ enum Commands {
         #[clap(value_parser)]
         id: i32,
     },
+
+    Call {
+        #[clap(value_parser)]
+        topic: String,
+        #[clap(value_parser)]
+        data: String,
+        #[clap(value_parser)]
+        response: String,
+    },
 }
 
 #[derive(Debug)]
@@ -72,7 +81,15 @@ fn main() -> Result<()> {
 
     match &args.command {
         Commands::Add { topic, data } => {
-            add(&conn, &topic, None, None, &data.as_bytes().to_vec(), &None, 0)?;
+            add(
+                &conn,
+                &topic,
+                None,
+                None,
+                &data.as_bytes().to_vec(),
+                &None,
+                0,
+            )?;
         }
         Commands::List {} => {
             list(&conn)?;
@@ -87,6 +104,22 @@ fn main() -> Result<()> {
         }
         Commands::Poll { id } => {
             poll(&conn, &id)?;
+        }
+        Commands::Call {
+            topic,
+            data,
+            response,
+        } => {
+            let id = add(
+                &conn,
+                &topic,
+                None,
+                None,
+                &data.as_bytes().to_vec(),
+                &None,
+                0,
+            )?;
+            println!("{:?}", id);
         }
     }
 
@@ -119,26 +152,24 @@ fn add(
     data: &Vec<u8>,
     err: &Option<Vec<u8>>,
     code: i32,
-) -> Result<()> {
+) -> Result<i64> {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
-
-    let id: Option<i32> = None;
-    conn.execute(
+    let id = conn.prepare(
         "INSERT INTO stream
         (topic, stamp, source_id, parent_id, data, err, code)
         VALUES
         (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![
-            &topic.to_string(),
-            stamp.to_le_bytes(),
-            source_id,
-            parent_id,
-            data,
-            err,
-            code,
-        ],
-    )?;
-    Ok(())
+    )?
+    .insert(params![
+        &topic.to_string(),
+        stamp.to_le_bytes(),
+        source_id,
+        parent_id,
+        data,
+        err,
+        code,
+    ])?;
+    Ok(id)
 }
 
 fn create_item(row: &Row) -> rusqlite::Result<Item> {
@@ -205,19 +236,19 @@ fn run(
 fn poll(conn: &Connection, id: &i32) -> Result<()> {
     let mut stmt = conn.prepare("select * from stream where id > ?1 limit 1;")?;
     loop {
-    match stmt.query_row([id], create_item) {
-        Ok(item) => {
-            println!("{:?}", item);
-            break;
-        }
-        Err(err) => match err {
-            rusqlite::Error::QueryReturnedNoRows => {
-                println!("peace.");
-                std::thread::sleep(std::time::Duration::from_millis(100));
+        match stmt.query_row([id], create_item) {
+            Ok(item) => {
+                println!("{:?}", item);
+                break;
             }
-            _ => return Err(err).map_err(anyhow::Error::from),
-        },
-    };
+            Err(err) => match err {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    println!("peace.");
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                _ => return Err(err).map_err(anyhow::Error::from),
+            },
+        };
     }
 
     Ok(())
