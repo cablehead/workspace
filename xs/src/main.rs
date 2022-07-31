@@ -22,15 +22,18 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Add item
+    // Add item
     Add {
         #[clap(value_parser)]
         topic: String,
         #[clap(value_parser)]
         data: Vec<u8>,
     },
-    /// List items
+
+    // List items
     List {},
+
+    // Process a given stream item with a command, and save the result as a new stream item
     Run {
         #[clap(value_parser)]
         id: i32,
