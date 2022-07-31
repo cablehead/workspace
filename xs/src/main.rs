@@ -27,7 +27,7 @@ enum Commands {
         #[clap(value_parser)]
         topic: String,
         #[clap(value_parser)]
-        data: Vec<u8>,
+        data: String,
     },
 
     // List items
@@ -44,6 +44,12 @@ enum Commands {
         #[clap(value_parser)]
         args: Vec<String>,
     },
+
+    // Poll for new items
+    Poll {
+        #[clap(value_parser)]
+        id: i32,
+    },
 }
 
 #[derive(Debug)]
@@ -53,8 +59,8 @@ struct Item {
     stamp: u128,
     source_id: Option<i32>,
     parent_id: Option<i32>,
-    data: Option<String>,
-    err: Option<String>,
+    data: Option<Vec<u8>>,
+    err: Option<Vec<u8>>,
     code: i32,
 }
 
@@ -66,7 +72,7 @@ fn main() -> Result<()> {
 
     match &args.command {
         Commands::Add { topic, data } => {
-            add(&conn, &topic, None, None, &data, &None, 0)?;
+            add(&conn, &topic, None, None, &data.as_bytes().to_vec(), &None, 0)?;
         }
         Commands::List {} => {
             list(&conn)?;
@@ -78,6 +84,9 @@ fn main() -> Result<()> {
             args,
         } => {
             run(&conn, &id, &topic, &command, &args)?;
+        }
+        Commands::Poll { id } => {
+            poll(&conn, &id)?;
         }
     }
 
@@ -175,7 +184,7 @@ fn run(
         .spawn()?;
     {
         let mut stdin = p.stdin.take().unwrap();
-        stdin.write_all(item.data.unwrap().as_bytes())?;
+        stdin.write_all(&item.data.unwrap())?;
     }
 
     let res = p.wait_with_output()?;
@@ -189,6 +198,27 @@ fn run(
         &Some(res.stderr),
         res.status.code().unwrap(),
     )?;
+
+    Ok(())
+}
+
+fn poll(conn: &Connection, id: &i32) -> Result<()> {
+    let mut stmt = conn.prepare("select * from stream where id > ?1 limit 1;")?;
+    loop {
+    match stmt.query_row([id], create_item) {
+        Ok(item) => {
+            println!("{:?}", item);
+            break;
+        }
+        Err(err) => match err {
+            rusqlite::Error::QueryReturnedNoRows => {
+                println!("peace.");
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            _ => return Err(err).map_err(anyhow::Error::from),
+        },
+    };
+    }
 
     Ok(())
 }
