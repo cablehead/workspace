@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use clap::{Parser, Subcommand};
 
 use rusqlite;
-use rusqlite::{params, types, Connection, Row};
+use rusqlite::{params, Connection, Row};
 
 use anyhow::Result;
 
@@ -61,7 +61,7 @@ fn main() -> Result<()> {
 
     match &args.command {
         Commands::Add { topic, data } => {
-            add(&conn, &topic, &data)?;
+            add(&conn, &topic, None, None, &data, &None, 0)?;
         }
         Commands::List {} => {
             list(&conn)?;
@@ -92,8 +92,18 @@ fn create(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn add(conn: &Connection, topic: &String, data: &String) -> Result<()> {
+fn add(
+    conn: &Connection,
+    topic: &String,
+    source_id: Option<i32>,
+    parent_id: Option<i32>,
+    data: &String,
+    err: &Option<String>,
+    code: i32,
+) -> Result<()> {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+
+    let id: Option<i32> = None;
     conn.execute(
         "INSERT INTO stream
         (topic, stamp, source_id, parent_id, data, err, code)
@@ -102,11 +112,11 @@ fn add(conn: &Connection, topic: &String, data: &String) -> Result<()> {
         params![
             &topic.to_string(),
             stamp.to_le_bytes(),
-            types::Null,
-            types::Null,
+            source_id,
+            parent_id,
             &data.to_string(),
-            types::Null,
-            0,
+            err,
+            code,
         ],
     )?;
     Ok(())
