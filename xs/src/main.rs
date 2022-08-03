@@ -59,6 +59,17 @@ enum Commands {
         #[clap(value_parser)]
         response: String,
     },
+
+    Map {
+        #[clap(value_parser)]
+        topic: String,
+        #[clap(value_parser)]
+        response: String,
+        #[clap(value_parser)]
+        command: String,
+        #[clap(value_parser)]
+        args: Vec<String>,
+    },
 }
 
 #[derive(Debug)]
@@ -111,6 +122,14 @@ fn main() -> Result<()> {
             response,
         } => {
             call(&conn, &topic, &data, &response)?;
+        }
+        Commands::Map {
+            topic,
+            response,
+            command,
+            args,
+        } => {
+            map(&conn, &topic, &response, &command, &args)?;
         }
     }
 
@@ -246,12 +265,7 @@ fn poll(conn: &Connection, id: &i32) -> Result<()> {
     Ok(())
 }
 
-fn call(
-    conn: &Connection,
-    topic: &String,
-    data: &String,
-    response: &String,
-) -> Result<()> {
+fn call(conn: &Connection, topic: &String, data: &String, response: &String) -> Result<()> {
     let id = add(
         &conn,
         &topic,
@@ -287,4 +301,32 @@ fn call(
     }
 
     Ok(())
+}
+
+fn poll_topic(conn: &Connection, topic: &String, last_id: &i32) -> Result<Item> {
+    loop {
+        let mut stmt = conn
+            .prepare("select * from stream where topic = ? and id > ? order by id asc limit 1;")?;
+        let res = stmt.query_map(params![topic, last_id], create_item)?.next();
+        if let Some(row) = res {
+            return Ok(row.unwrap());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+    }
+}
+
+fn map(conn: &Connection, topic: &String, response: &String, command: &String, args: &Vec<String>) -> Result<()> {
+    let mut stmt =
+        conn.prepare("select * from stream where topic = ? order by source_id desc limit 1;")?;
+    let res = stmt.query_map(params![response], create_item)?.next();
+    let mut last_id = match res {
+        Some(row) => row.unwrap().source_id,
+        None => None,
+    }
+    .unwrap_or(0);
+    loop {
+        let item = poll_topic(&conn, &topic, &last_id)?;
+        run(&conn, &item.id, &response, &command, &args)?;
+        last_id = item.id;
+    }
 }
