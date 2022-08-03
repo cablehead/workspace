@@ -110,42 +110,7 @@ fn main() -> Result<()> {
             data,
             response,
         } => {
-            let id = add(
-                &conn,
-                &topic,
-                None,
-                None,
-                &data.as_bytes().to_vec(),
-                &None,
-                0,
-            )?;
-            println!("{:?}", id);
-
-            let mut stmt =
-                conn.prepare("select * from stream where topic = ? and source_id = ? limit 1;")?;
-            loop {
-                match stmt.query_row(params![response, id], create_item) {
-                    Ok(item) => {
-                        if let Some(data) = item.data {
-                            std::io::stdout().write_all(&data)?;
-                        }
-                        if let Some(err) = item.err {
-                            std::io::stderr().write_all(&err)?;
-                        }
-                        std::process::exit(item.code);
-                        break;
-                    }
-                    Err(err) => match err {
-                        rusqlite::Error::QueryReturnedNoRows => {
-                            println!("peace.");
-                            std::thread::sleep(std::time::Duration::from_millis(100));
-                        }
-                        _ => return Err(err).map_err(anyhow::Error::from),
-                    },
-                };
-            }
-
-            return Ok(());
+            call(&conn, &topic, &data, &response)?;
         }
     }
 
@@ -271,7 +236,49 @@ fn poll(conn: &Connection, id: &i32) -> Result<()> {
             }
             Err(err) => match err {
                 rusqlite::Error::QueryReturnedNoRows => {
-                    println!("peace.");
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                _ => return Err(err).map_err(anyhow::Error::from),
+            },
+        };
+    }
+
+    Ok(())
+}
+
+fn call(
+    conn: &Connection,
+    topic: &String,
+    data: &String,
+    response: &String,
+) -> Result<()> {
+    let id = add(
+        &conn,
+        &topic,
+        None,
+        None,
+        &data.as_bytes().to_vec(),
+        &None,
+        0,
+    )?;
+    println!("{:?}", id);
+
+    let mut stmt =
+        conn.prepare("select * from stream where topic = ? and source_id = ? limit 1;")?;
+    loop {
+        match stmt.query_row(params![response, id], create_item) {
+            Ok(item) => {
+                if let Some(data) = item.data {
+                    std::io::stdout().write_all(&data)?;
+                }
+                if let Some(err) = item.err {
+                    std::io::stderr().write_all(&err)?;
+                }
+                std::process::exit(item.code);
+                break;
+            }
+            Err(err) => match err {
+                rusqlite::Error::QueryReturnedNoRows => {
                     std::thread::sleep(std::time::Duration::from_millis(100));
                 }
                 _ => return Err(err).map_err(anyhow::Error::from),
