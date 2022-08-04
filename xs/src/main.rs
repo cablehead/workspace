@@ -34,6 +34,11 @@ enum Commands {
     // List items
     List {},
 
+    Replay {
+        #[clap(value_parser)]
+        id: i32,
+    },
+
     // Process a given stream item with a command, and save the result as a new stream item
     Run {
         #[clap(value_parser)]
@@ -103,6 +108,9 @@ fn main() -> Result<()> {
         }
         Commands::List {} => {
             list(&conn)?;
+        }
+        Commands::Replay { id } => {
+            replay(&conn, &id)?;
         }
         Commands::Run {
             id,
@@ -200,6 +208,19 @@ fn list(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+fn replay(conn: &Connection, id: &i32) -> Result<()> {
+    let mut stmt = conn.prepare("select * from stream where id = ?1 limit 1;")?;
+    let item = stmt.query_row([id], create_item)?;
+    if let Some(data) = item.data {
+        std::io::stdout().write_all(&data)?;
+    }
+    if let Some(err) = item.err {
+        std::io::stderr().write_all(&err)?;
+    }
+    std::process::exit(item.code);
+    Ok(())
+}
+
 fn run(
     conn: &Connection,
     id: &i32,
@@ -262,15 +283,7 @@ fn poll(conn: &Connection, id: &i32) -> Result<()> {
 
 fn call(conn: &Connection, topic: &String, response: &String) -> Result<()> {
     let data: Vec<u8> = std::io::stdin().bytes().map(|x| x.unwrap()).collect();
-    let id = add(
-        &conn,
-        &topic,
-        None,
-        None,
-        &data,
-        &None,
-        0,
-    )?;
+    let id = add(&conn, &topic, None, None, &data, &None, 0)?;
 
     let mut stmt =
         conn.prepare("select * from stream where topic = ? and source_id = ? limit 1;")?;
