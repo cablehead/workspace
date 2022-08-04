@@ -319,7 +319,7 @@ fn poll_topic(conn: &Connection, topic: &String, last_id: &i32) -> Result<Item> 
         if let Some(row) = res {
             return Ok(row.unwrap());
         }
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 }
 
