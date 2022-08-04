@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::io::Write;
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -54,8 +55,6 @@ enum Commands {
     Call {
         #[clap(value_parser)]
         topic: String,
-        #[clap(value_parser)]
-        data: String,
         #[clap(value_parser)]
         response: String,
     },
@@ -116,12 +115,8 @@ fn main() -> Result<()> {
         Commands::Poll { id } => {
             poll(&conn, &id)?;
         }
-        Commands::Call {
-            topic,
-            data,
-            response,
-        } => {
-            call(&conn, &topic, &data, &response)?;
+        Commands::Call { topic, response } => {
+            call(&conn, &topic, &response)?;
         }
         Commands::Map {
             topic,
@@ -265,17 +260,17 @@ fn poll(conn: &Connection, id: &i32) -> Result<()> {
     Ok(())
 }
 
-fn call(conn: &Connection, topic: &String, data: &String, response: &String) -> Result<()> {
+fn call(conn: &Connection, topic: &String, response: &String) -> Result<()> {
+    let data: Vec<u8> = std::io::stdin().bytes().map(|x| x.unwrap()).collect();
     let id = add(
         &conn,
         &topic,
         None,
         None,
-        &data.as_bytes().to_vec(),
+        &data,
         &None,
         0,
     )?;
-    println!("{:?}", id);
 
     let mut stmt =
         conn.prepare("select * from stream where topic = ? and source_id = ? limit 1;")?;
@@ -315,7 +310,13 @@ fn poll_topic(conn: &Connection, topic: &String, last_id: &i32) -> Result<Item> 
     }
 }
 
-fn map(conn: &Connection, topic: &String, response: &String, command: &String, args: &Vec<String>) -> Result<()> {
+fn map(
+    conn: &Connection,
+    topic: &String,
+    response: &String,
+    command: &String,
+    args: &Vec<String>,
+) -> Result<()> {
     let mut stmt =
         conn.prepare("select * from stream where topic = ? order by source_id desc limit 1;")?;
     let res = stmt.query_map(params![response], create_item)?.next();
