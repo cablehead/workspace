@@ -5,6 +5,8 @@ use std::process;
 use anyhow::Result;
 use clap::Parser;
 
+use serde::{Deserialize, Serialize};
+
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]
@@ -13,6 +15,13 @@ struct Args {
     command: String,
     #[clap(value_parser)]
     args: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Response {
+    body: String,
+    headers: Option<Vec<(String, String)>>,
+    status: Option<u32>,
 }
 
 fn main() -> Result<()> {
@@ -44,10 +53,32 @@ fn main() -> Result<()> {
             .args(&args.args)
             .stdin(process::Stdio::piped())
             .stdout(process::Stdio::piped())
-            .stderr(process::Stdio::piped())
             .spawn()?;
-        let mut stdin = p.stdin.take().unwrap();
-        stdin.write_all(packet.to_string().as_bytes())?;
+        {
+            let mut stdin = p.stdin.take().unwrap();
+            stdin.write_all(packet.to_string().as_bytes())?;
+        }
+        let res = p.wait_with_output()?;
+        let res = serde_json::from_str(&std::str::from_utf8(&res.stdout)?);
+        let res: Response = res.unwrap();
+        println!("{:?}", &res);
+        let mut http_response = tiny_http::Response::from_string(&res.body);
+        http_response.add_header(
+            tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"text/html; charset=utf8"[..])
+                .unwrap(),
+        );
+
+        if let Some(headers) = res.headers {
+            for header in headers {
+                println!("{:?}", &header);
+                let (key, value) = header;
+                let key = key.as_bytes().to_vec();
+                let value = value.as_bytes().to_vec();
+                http_response.add_header(tiny_http::Header::from_bytes(key, value).unwrap());
+            }
+        }
+
+        req.respond(http_response.with_status_code(res.status.unwrap_or(200)))?;
     }
 
     Ok(())
