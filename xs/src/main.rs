@@ -3,12 +3,11 @@ use std::io::Write;
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use anyhow::Result;
 use clap::{Parser, Subcommand};
-
 use rusqlite;
 use rusqlite::{params, Connection, Row};
-
-use anyhow::Result;
+use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -76,7 +75,7 @@ enum Commands {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Item {
     id: i32,
     topic: String,
@@ -203,7 +202,7 @@ fn list(conn: &Connection) -> Result<()> {
     let mut stmt = conn.prepare("select * from stream;")?;
     let items = stmt.query_map([], create_item)?;
     for item in items {
-        println!("Found item {:?}", item);
+        println!("{}", serde_json::to_string(&item.unwrap())?);
     }
     Ok(())
 }
