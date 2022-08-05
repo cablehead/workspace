@@ -84,10 +84,10 @@ struct Item {
     source_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     parent_id: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none", serialize_with = "as_base64")]
-    data: Option<Vec<u8>>,
-    #[serde(skip_serializing_if = "Option::is_none", serialize_with = "as_base64")]
-    err: Option<Vec<u8>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    err: Option<String>,
     code: i32,
 }
 
@@ -111,7 +111,7 @@ fn main() -> Result<()> {
                 &topic,
                 None,
                 None,
-                &data.as_bytes().to_vec(),
+                &data,
                 &None,
                 0,
             )?;
@@ -172,8 +172,8 @@ fn add(
     topic: &String,
     source_id: Option<i32>,
     parent_id: Option<i32>,
-    data: &Vec<u8>,
-    err: &Option<Vec<u8>>,
+    data: &String,
+    err: &Option<String>,
     code: i32,
 ) -> Result<i64> {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
@@ -222,10 +222,10 @@ fn replay(conn: &Connection, id: &i32) -> Result<()> {
     let mut stmt = conn.prepare("select * from stream where id = ?1 limit 1;")?;
     let item = stmt.query_row([id], create_item)?;
     if let Some(data) = item.data {
-        std::io::stdout().write_all(&data)?;
+        std::io::stdout().write_all(&data.as_bytes())?;
     }
     if let Some(err) = item.err {
-        std::io::stderr().write_all(&err)?;
+        std::io::stderr().write_all(&err.as_bytes())?;
     }
     std::process::exit(item.code);
     Ok(())
@@ -253,7 +253,7 @@ fn run(
         .spawn()?;
     {
         let mut stdin = p.stdin.take().unwrap();
-        stdin.write_all(&item.data.unwrap())?;
+        stdin.write_all(&item.data.unwrap().as_bytes())?;
     }
 
     let res = p.wait_with_output()?;
@@ -263,8 +263,8 @@ fn run(
         topic,
         item.source_id.or(Some(item.id)),
         Some(item.id),
-        &res.stdout,
-        &Some(res.stderr),
+        &String::from_utf8(res.stdout)?,
+        &Some(String::from_utf8(res.stderr)?),
         res.status.code().unwrap(),
     )?;
 
@@ -292,7 +292,8 @@ fn poll(conn: &Connection, id: &i32) -> Result<()> {
 }
 
 fn call(conn: &Connection, topic: &String, response: &String) -> Result<()> {
-    let data: Vec<u8> = std::io::stdin().bytes().map(|x| x.unwrap()).collect();
+    let mut data = String::new();
+    std::io::stdin().read_to_string(&mut data)?;
     let id = add(&conn, &topic, None, None, &data, &None, 0)?;
 
     let mut stmt =
@@ -301,10 +302,10 @@ fn call(conn: &Connection, topic: &String, response: &String) -> Result<()> {
         match stmt.query_row(params![response, id], create_item) {
             Ok(item) => {
                 if let Some(data) = item.data {
-                    std::io::stdout().write_all(&data)?;
+                    std::io::stdout().write_all(&data.as_bytes())?;
                 }
                 if let Some(err) = item.err {
-                    std::io::stderr().write_all(&err)?;
+                    std::io::stderr().write_all(&err.as_bytes())?;
                 }
                 std::process::exit(item.code);
                 break;
