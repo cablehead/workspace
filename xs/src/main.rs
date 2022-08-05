@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use rusqlite;
 use rusqlite::{params, Connection, Row};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -80,11 +80,22 @@ struct Item {
     id: i32,
     topic: String,
     stamp: u128,
+    #[serde(skip_serializing_if = "Option::is_none")]
     source_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     parent_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none", serialize_with = "as_base64")]
     data: Option<Vec<u8>>,
+    #[serde(skip_serializing_if = "Option::is_none", serialize_with = "as_base64")]
     err: Option<Vec<u8>>,
     code: i32,
+}
+
+pub fn as_base64<S: Serializer>(v: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error> {
+    match v {
+        Some(v) => s.serialize_str(&base64::encode(v)),
+        None => s.serialize_none(),
+    }
 }
 
 fn main() -> Result<()> {

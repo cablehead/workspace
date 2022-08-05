@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.58"
+base64 = "0.13.0"
 clap = { version = "3.2.14", features = ["derive"] }
 rusqlite = "0.28.0"
 serde = { version = "1.0.142", features = ["derive"] }
