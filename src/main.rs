@@ -3,18 +3,21 @@ use warp::Filter;
 
 #[tokio::main]
 async fn main() {
-    let ws = warp::ws().map(|ws: warp::ws::Ws| {
-        // And then our closure will be called when it completes...
-        ws.on_upgrade(|websocket| {
-            // Just echo all messages back...
-            let (tx, rx) = websocket.split();
-            rx.forward(tx).map(|result| {
-                if let Err(e) = result {
-                    eprintln!("websocket error: {:?}", e);
-                }
+    let ws = warp::ws()
+        .and(warp::path::full())
+        .and(warp::header::headers_cloned())
+        .map(|ws: warp::ws::Ws, path, headers| {
+            ws.on_upgrade(move |websocket| {
+                println!("{:?}", path);
+                println!("{:?}", headers);
+                let (tx, rx) = websocket.split();
+                rx.forward(tx).map(|result| {
+                    if let Err(e) = result {
+                        eprintln!("websocket error: {:?}", e);
+                    }
+                })
             })
-        })
-    });
+        });
 
     let http = warp::method()
         .and(warp::path::full())
