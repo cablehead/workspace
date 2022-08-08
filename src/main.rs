@@ -60,6 +60,13 @@ pub async fn http(
         body: String,
     }
 
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Response {
+        status: Option<u32>,
+        headers: Option<std::collections::HashMap<String, String>>,
+        body: String,
+    }
+
     let request = serde_json::json!(Request {
         method: method,
         path: path.as_str().parse().unwrap(),
@@ -67,15 +74,17 @@ pub async fn http(
         body: String::from_utf8(body.to_vec()).unwrap(),
     });
 
-
     let res = process("cat", request.to_string().as_bytes()).await;
+    let res: Response = serde_json::from_slice(&res.stdout).unwrap();
+    println!("{:?}", res);
+
     Ok(http::Response::builder()
         .status(200)
-        .body(bytes::Bytes::from(res))
+        .body(bytes::Bytes::from("foo"))
         .unwrap())
 }
 
-async fn process(command: &str, i: &[u8]) -> Vec<u8> {
+async fn process(command: &str, i: &[u8]) -> std::process::Output {
     let mut p = tokio::process::Command::new(command)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -88,14 +97,13 @@ async fn process(command: &str, i: &[u8]) -> Vec<u8> {
     }
 
     let res = p.wait_with_output().await.expect("todo");
-    // todo
     assert_eq!(res.status.code().unwrap(), 0);
-    res.stdout
+    res
 }
 
 #[tokio::test]
 async fn test_process() {
-    assert_eq!(process("cat", b"foo").await, b"foo");
+    assert_eq!(process("cat", b"foo").await.stdout, b"foo");
 }
 
 #[tokio::test]
