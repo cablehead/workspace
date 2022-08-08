@@ -74,7 +74,7 @@ pub async fn http(
         body: String::from_utf8(body.to_vec()).unwrap(),
     });
 
-    let res = process("cat", request.to_string().as_bytes()).await;
+    let res = process("echo", vec![r#"{"body": "hi"}"#], request.to_string().as_bytes()).await;
     let res: Response = serde_json::from_slice(&res.stdout).unwrap();
     println!("{:?}", res);
 
@@ -84,8 +84,9 @@ pub async fn http(
         .unwrap())
 }
 
-async fn process(command: &str, i: &[u8]) -> std::process::Output {
+async fn process(command: &str, args: Vec<&str>, i: &[u8]) -> std::process::Output {
     let mut p = tokio::process::Command::new(command)
+        .args(args)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .spawn()
@@ -103,7 +104,7 @@ async fn process(command: &str, i: &[u8]) -> std::process::Output {
 
 #[tokio::test]
 async fn test_process() {
-    assert_eq!(process("cat", b"foo").await.stdout, b"foo");
+    assert_eq!(process("cat", vec![], b"foo").await.stdout, b"foo");
 }
 
 #[tokio::test]
