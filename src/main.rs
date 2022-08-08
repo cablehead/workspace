@@ -2,7 +2,6 @@ use futures_util::{FutureExt, StreamExt};
 
 use tokio::io::AsyncWriteExt;
 
-use warp::filters::path::FullPath;
 use warp::http::header::HeaderMap;
 use warp::Filter;
 
@@ -42,7 +41,7 @@ async fn serve() {
 
 pub async fn http(
     method: http::method::Method,
-    path: FullPath,
+    path: warp::filters::path::FullPath,
     headers: HeaderMap,
     body: warp::hyper::body::Bytes,
 ) -> Result<impl warp::Reply, std::convert::Infallible> {
@@ -53,14 +52,12 @@ pub async fn http(
     // - decode read response
     // - construct http response
 
-    println!("{:?}", method);
-    println!("{:?}", path);
     println!("{:?}", headers);
     println!("{:?}", body);
     let packet = serde_json::json!({
         "method": method.as_str(),
         // "headers": headers,
-        // "url": path,
+        "path": path.as_str(),
         // "body": body,
     });
 
