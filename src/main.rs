@@ -11,6 +11,11 @@ use warp::Filter;
 
 #[tokio::main]
 async fn main() {
+    serve().await
+}
+
+async fn serve() {
+    println!("1");
     let ws = warp::ws()
         .and(warp::path::full())
         .and(warp::header::headers_cloned())
@@ -32,8 +37,10 @@ async fn main() {
         .and(warp::header::headers_cloned())
         .and(warp::body::bytes())
         .and_then(http);
+    println!("2");
 
     warp::serve(ws.or(http)).run(([127, 0, 0, 1], 3030)).await;
+    println!("3");
 }
 
 pub async fn http(
@@ -48,31 +55,26 @@ pub async fn http(
     // - read child stdout/err/status code
     // - decode read response
     // - construct http response
+
+    println!("{:?}", method);
+    println!("{:?}", path);
+    println!("{:?}", headers);
+    println!("{:?}", body);
     let packet = serde_json::json!({
         // "method": method,
         // "headers": headers,
         // "url": path,
         // "body": body,
     });
-    let mut child = tokio::process::Command::new("echo")
-        .arg("hello")
-        .arg("world")
-        .spawn()
-        .expect("failed to spawn");
 
-    // Await until the command completes
-    let status = child.wait().await.expect("todo");
-    println!("the command exited with: {}", status);
+    let res = process("cat", b"foo").await;
+    println!("res: {:?}", res);
 
-    println!("{:?}", method);
-    println!("{:?}", path);
-    println!("{:?}", headers);
-    println!("{:?}", body);
     Ok(warp::reply())
 }
 
-async fn process() -> i32 {
-    let mut p = tokio::process::Command::new("cat")
+async fn process(command: &str, i: &[u8]) -> Vec<u8> {
+    let mut p = tokio::process::Command::new(command)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .spawn()
@@ -80,18 +82,30 @@ async fn process() -> i32 {
 
     {
         let mut stdin = p.stdin.take().unwrap();
-        stdin.write_all(b"foo").await.unwrap();
+        stdin.write_all(i).await.unwrap();
     }
 
     let res = p.wait_with_output().await.expect("todo");
-    println!("--");
-    println!("{:?}", res.stdout);
-    println!("the command exited with: {}", res.status);
-    println!("--");
-    42
+    // todo
+    assert_eq!(res.status.code().unwrap(), 0);
+    res.stdout
 }
 
 #[tokio::test]
 async fn test_process() {
-    assert_eq!(process().await, 42);
+    assert_eq!(process("cat", b"foo").await, b"foo");
+}
+
+#[tokio::test]
+async fn test_serve() {
+    tokio::spawn(serve());
+    // give the server a chance to start
+    tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+    let resp = reqwest::get("http://127.0.0.1:3030/")
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    println!("resp: {}", resp);
 }
