@@ -2,7 +2,8 @@ use futures_util::{FutureExt, StreamExt};
 
 use tokio::io::AsyncWriteExt;
 
-use warp::http::header::HeaderMap;
+use serde::{Deserialize, Serialize};
+
 use warp::Filter;
 
 #[tokio::main]
@@ -42,27 +43,36 @@ async fn serve() {
 pub async fn http(
     method: http::method::Method,
     path: warp::filters::path::FullPath,
-    headers: HeaderMap,
+    headers: http::header::HeaderMap,
     body: warp::hyper::body::Bytes,
 ) -> Result<impl warp::Reply, std::convert::Infallible> {
     // next steps:
-    // - flesh out packet
-    // - write packet to child stdin
-    // - read child stdout/err/status code
     // - decode read response
-    // - construct http response
 
-    println!("{:?}", headers);
-    println!("{:?}", body);
-    let packet = serde_json::json!({
-        "method": method.as_str(),
-        // "headers": headers,
-        "path": path.as_str(),
-        // "body": body,
+    #[derive(Serialize, Deserialize)]
+    struct Request {
+        #[serde(with = "http_serde::method")]
+        method: http::method::Method,
+        #[serde(with = "http_serde::header_map")]
+        headers: http::header::HeaderMap,
+        #[serde(with = "http_serde::uri")]
+        path: http::Uri,
+        body: String,
+    }
+
+    let request = serde_json::json!(Request {
+        method: method,
+        path: path.as_str().parse().unwrap(),
+        headers: headers,
+        body: String::from_utf8(body.to_vec()).unwrap(),
     });
 
-    let res = process("cat", packet.to_string().as_bytes()).await;
-    Ok(http::Response::builder().status(200).body(bytes::Bytes::from(res)).unwrap())
+
+    let res = process("cat", request.to_string().as_bytes()).await;
+    Ok(http::Response::builder()
+        .status(200)
+        .body(bytes::Bytes::from(res))
+        .unwrap())
 }
 
 async fn process(command: &str, i: &[u8]) -> Vec<u8> {
