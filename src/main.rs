@@ -4,7 +4,6 @@ use tokio::io::AsyncWriteExt;
 
 use warp::filters::path::FullPath;
 use warp::http::header::HeaderMap;
-use warp::http::method::Method;
 use warp::Filter;
 
 #[tokio::main]
@@ -42,7 +41,7 @@ async fn serve() {
 }
 
 pub async fn http(
-    method: Method,
+    method: http::method::Method,
     path: FullPath,
     headers: HeaderMap,
     body: warp::hyper::body::Bytes,
@@ -59,7 +58,7 @@ pub async fn http(
     println!("{:?}", headers);
     println!("{:?}", body);
     let packet = serde_json::json!({
-        // "method": method,
+        "method": method.as_str(),
         // "headers": headers,
         // "url": path,
         // "body": body,
