@@ -1,10 +1,12 @@
 use futures_util::{FutureExt, StreamExt};
 
+use tokio::io::AsyncWriteExt;
+
 // use serde::{Deserialize, Serialize};
 //
-use warp::http::method::Method;
 use warp::filters::path::FullPath;
 use warp::http::header::HeaderMap;
+use warp::http::method::Method;
 use warp::Filter;
 
 #[tokio::main]
@@ -69,12 +71,27 @@ pub async fn http(
     Ok(warp::reply())
 }
 
-async fn answer() -> i32 {
+async fn process() -> i32 {
+    let mut p = tokio::process::Command::new("cat")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("failed to spawn");
+
+    {
+        let mut stdin = p.stdin.take().unwrap();
+        stdin.write_all(b"foo").await.unwrap();
+    }
+
+    let res = p.wait_with_output().await.expect("todo");
+    println!("--");
+    println!("{:?}", res.stdout);
+    println!("the command exited with: {}", res.status);
+    println!("--");
     42
 }
 
-
 #[tokio::test]
-async fn my_test() {
-    assert_eq!(answer().await, 42);
+async fn test_process() {
+    assert_eq!(process().await, 42);
 }
