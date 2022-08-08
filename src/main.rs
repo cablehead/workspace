@@ -34,19 +34,6 @@ async fn main() {
     warp::serve(ws.or(http)).run(([127, 0, 0, 1], 3030)).await;
 }
 
-/*
-pub async fn http() -> Result<impl warp::Reply, Infallible> {
-    let todos = db.lock().await;
-    let todos: Vec<Todo> = todos
-        .clone()
-        .into_iter()
-        .skip(opts.offset.unwrap_or(0))
-        .take(opts.limit.unwrap_or(std::usize::MAX))
-        .collect();
-    Ok(warp::reply::json(&todos))
-}
-*/
-
 pub async fn http(
     method: Method,
     path: FullPath,
@@ -80,4 +67,14 @@ pub async fn http(
     println!("{:?}", headers);
     println!("{:?}", body);
     Ok(warp::reply())
+}
+
+async fn answer() -> i32 {
+    42
+}
+
+
+#[tokio::test]
+async fn my_test() {
+    assert_eq!(answer().await, 42);
 }
