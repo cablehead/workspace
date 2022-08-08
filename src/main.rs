@@ -2,8 +2,6 @@ use futures_util::{FutureExt, StreamExt};
 
 use tokio::io::AsyncWriteExt;
 
-// use serde::{Deserialize, Serialize};
-//
 use warp::filters::path::FullPath;
 use warp::http::header::HeaderMap;
 use warp::http::method::Method;
@@ -67,10 +65,8 @@ pub async fn http(
         // "body": body,
     });
 
-    let res = process("cat", b"foo").await;
-    println!("res: {:?}", res);
-
-    Ok(warp::reply())
+    let res = process("cat", packet.to_string().as_bytes()).await;
+    Ok(http::Response::builder().status(200).body(bytes::Bytes::from(res)).unwrap())
 }
 
 async fn process(command: &str, i: &[u8]) -> Vec<u8> {
