@@ -12,7 +12,6 @@ async fn main() {
 }
 
 async fn serve() {
-    println!("1");
     let ws = warp::ws()
         .and(warp::path::full())
         .and(warp::header::headers_cloned())
@@ -34,10 +33,8 @@ async fn serve() {
         .and(warp::header::headers_cloned())
         .and(warp::body::bytes())
         .and_then(http);
-    println!("2");
 
     warp::serve(ws.or(http)).run(([127, 0, 0, 1], 3030)).await;
-    println!("3");
 }
 
 pub async fn http(
@@ -46,9 +43,6 @@ pub async fn http(
     headers: http::header::HeaderMap,
     body: warp::hyper::body::Bytes,
 ) -> Result<impl warp::Reply, std::convert::Infallible> {
-    // next steps:
-    // - decode read response
-
     #[derive(Serialize, Deserialize)]
     struct Request {
         #[serde(with = "http_serde::method")]
@@ -76,11 +70,13 @@ pub async fn http(
 
     let res = process("echo", vec![r#"{"body": "hi"}"#], request.to_string().as_bytes()).await;
     let res: Response = serde_json::from_slice(&res.stdout).unwrap();
-    println!("{:?}", res);
 
+    // next steps:
+    // - relay status
+    // - relay headers
     Ok(http::Response::builder()
         .status(200)
-        .body(bytes::Bytes::from("foo"))
+        .body(res.body)
         .unwrap())
 }
 
