@@ -68,16 +68,24 @@ pub async fn http(
         body: String::from_utf8(body.to_vec()).unwrap(),
     });
 
-    let res = process("echo", vec![r#"{"body": "hi"}"#], request.to_string().as_bytes()).await;
+    let res = process(
+        "echo",
+        vec![r#"{"body": "hai"}"#],
+        request.to_string().as_bytes(),
+    )
+    .await;
     let res: Response = serde_json::from_slice(&res.stdout).unwrap();
 
     // next steps:
     // - relay status
     // - relay headers
-    Ok(http::Response::builder()
+    let http_response = http::Response::builder()
         .status(200)
+        .header("Content-Type", "text/html; charset=utf8")
         .body(res.body)
-        .unwrap())
+        .unwrap();
+
+    Ok(http_response)
 }
 
 async fn process(command: &str, args: Vec<&str>, i: &[u8]) -> std::process::Output {
@@ -108,11 +116,13 @@ async fn test_serve() {
     tokio::spawn(serve());
     // give the server a chance to start
     tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-    let resp = reqwest::get("http://127.0.0.1:3030/")
-        .await
-        .unwrap()
-        .text()
-        .await
-        .unwrap();
-    println!("resp: {}", resp);
+
+    let resp = reqwest::get("http://127.0.0.1:3030/").await.unwrap();
+
+    assert_eq!(resp.status(), 200);
+    assert_eq!(
+        resp.headers().get("content-type").unwrap(),
+        "text/html; charset=utf8",
+    );
+    assert_eq!(resp.text().await.unwrap(), "hai");
 }
