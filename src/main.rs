@@ -8,7 +8,12 @@ use warp::Filter;
 
 #[tokio::main]
 async fn main() {
-    serve("echo".to_string(), vec![r#"{"body": "hai"}"#.to_string()], 3030).await
+    serve(
+        "echo".to_string(),
+        vec![r#"{"body": "hai"}"#.to_string()],
+        3030,
+    )
+    .await
 }
 
 async fn serve(command: String, args: Vec<String>, port: u16) {
@@ -27,6 +32,18 @@ async fn serve(command: String, args: Vec<String>, port: u16) {
                 })
             })
         });
+
+    fn with_command(
+        command: String,
+    ) -> impl Filter<Extract = (String,), Error = std::convert::Infallible> + Clone {
+        warp::any().map(move || command.clone())
+    }
+
+    fn with_args(
+        args: Vec<String>,
+    ) -> impl Filter<Extract = (Vec<String>,), Error = std::convert::Infallible> + Clone {
+        warp::any().map(move || args.clone())
+    }
 
     let http = warp::method()
         .and(warp::path::full())
@@ -151,16 +168,4 @@ async fn test_serve_override() {
         "text/html; charset=utf8",
     );
     assert_eq!(resp.text().await.unwrap(), "sorry");
-}
-
-fn with_command(
-    command: String,
-) -> impl Filter<Extract = (String,), Error = std::convert::Infallible> + Clone {
-    warp::any().map(move || command.clone())
-}
-
-fn with_args(
-    args: Vec<String>,
-) -> impl Filter<Extract = (Vec<String>,), Error = std::convert::Infallible> + Clone {
-    warp::any().map(move || args.clone())
 }
