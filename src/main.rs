@@ -77,7 +77,7 @@ pub async fn http(
 
     #[derive(Debug, Serialize, Deserialize)]
     struct Response {
-        status: Option<u32>,
+        status: Option<u16>,
         headers: Option<std::collections::HashMap<String, String>>,
         body: String,
     }
@@ -92,16 +92,21 @@ pub async fn http(
     let res = process(command, args, request.to_string().as_bytes()).await;
     let res: Response = serde_json::from_slice(&res.stdout).unwrap();
 
-    // next steps:
-    // - relay status
-    // - relay headers
-    let http_response = http::Response::builder()
-        .status(200)
-        .header("Content-Type", "text/html; charset=utf8")
-        .body(res.body)
-        .unwrap();
+    let mut builder = http::Response::builder()
+        .status(res.status.unwrap_or(200))
+        .header("Content-Type", "text/html; charset=utf8");
 
-    Ok(http_response)
+    if let Some(src_headers) = res.headers {
+        let headers = builder.headers_mut().unwrap();
+        for (key, value) in src_headers.iter() {
+            headers.insert(
+                http::header::HeaderName::try_from(key.clone()).unwrap(),
+                http::header::HeaderValue::try_from(value.clone()).unwrap(),
+            );
+        }
+    }
+
+    Ok(builder.body(res.body).unwrap())
 }
 
 async fn process(command: String, args: Vec<String>, i: &[u8]) -> std::process::Output {
@@ -154,7 +159,14 @@ async fn test_serve_defaults() {
 async fn test_serve_override() {
     tokio::spawn(serve(
         "echo".to_string(),
-        vec![r#"{"body": "sorry", "status": 404, "content-type": "text/plain"}"#.to_string()],
+        vec![r#"{
+            "body": "sorry",
+            "status": 404,
+            "headers": {
+                "content-type": "text/plain"
+            }
+        }"#
+        .to_string()],
         3031,
     ));
     // give the server a chance to start
@@ -162,10 +174,7 @@ async fn test_serve_override() {
 
     let resp = reqwest::get("http://127.0.0.1:3031/").await.unwrap();
 
-    assert_eq!(resp.status(), 200);
-    assert_eq!(
-        resp.headers().get("content-type").unwrap(),
-        "text/html; charset=utf8",
-    );
+    assert_eq!(resp.status(), 404);
+    assert_eq!(resp.headers().get("content-type").unwrap(), "text/plain");
     assert_eq!(resp.text().await.unwrap(), "sorry");
 }
