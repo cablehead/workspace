@@ -2,18 +2,25 @@ use futures_util::{FutureExt, StreamExt};
 
 use tokio::io::AsyncWriteExt;
 
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 
 use warp::Filter;
 
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+#[clap(propagate_version = true)]
+struct Args {
+    #[clap(value_parser)]
+    command: String,
+    #[clap(value_parser)]
+    args: Vec<String>,
+}
+
 #[tokio::main]
 async fn main() {
-    serve(
-        "echo".to_string(),
-        vec![r#"{"body": "hai"}"#.to_string()],
-        3030,
-    )
-    .await
+    let args = Args::parse();
+    serve(args.command, args.args, 3030).await
 }
 
 async fn serve(command: String, args: Vec<String>, port: u16) {
