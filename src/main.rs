@@ -8,10 +8,10 @@ use warp::Filter;
 
 #[tokio::main]
 async fn main() {
-    serve().await
+    serve("echo".to_string(), vec![r#"{"body": "hai"}"#.to_string()]).await
 }
 
-async fn serve() {
+async fn serve(command: String, args: Vec<String>) {
     let ws = warp::ws()
         .and(warp::path::full())
         .and(warp::header::headers_cloned())
@@ -32,6 +32,8 @@ async fn serve() {
         .and(warp::path::full())
         .and(warp::header::headers_cloned())
         .and(warp::body::bytes())
+        .and(with_command(command))
+        .and(with_args(args))
         .and_then(http);
 
     warp::serve(ws.or(http)).run(([127, 0, 0, 1], 3030)).await;
@@ -42,6 +44,8 @@ pub async fn http(
     path: warp::filters::path::FullPath,
     headers: http::header::HeaderMap,
     body: warp::hyper::body::Bytes,
+    command: String,
+    args: Vec<String>,
 ) -> Result<impl warp::Reply, std::convert::Infallible> {
     #[derive(Serialize, Deserialize)]
     struct Request {
@@ -68,12 +72,7 @@ pub async fn http(
         body: String::from_utf8(body.to_vec()).unwrap(),
     });
 
-    let res = process(
-        "echo",
-        vec![r#"{"body": "hai"}"#],
-        request.to_string().as_bytes(),
-    )
-    .await;
+    let res = process(command, args, request.to_string().as_bytes()).await;
     let res: Response = serde_json::from_slice(&res.stdout).unwrap();
 
     // next steps:
@@ -88,7 +87,7 @@ pub async fn http(
     Ok(http_response)
 }
 
-async fn process(command: &str, args: Vec<&str>, i: &[u8]) -> std::process::Output {
+async fn process(command: String, args: Vec<String>, i: &[u8]) -> std::process::Output {
     let mut p = tokio::process::Command::new(command)
         .args(args)
         .stdin(std::process::Stdio::piped())
@@ -108,12 +107,18 @@ async fn process(command: &str, args: Vec<&str>, i: &[u8]) -> std::process::Outp
 
 #[tokio::test]
 async fn test_process() {
-    assert_eq!(process("cat", vec![], b"foo").await.stdout, b"foo");
+    assert_eq!(
+        process("cat".to_string(), vec![], b"foo").await.stdout,
+        b"foo"
+    );
 }
 
 #[tokio::test]
 async fn test_serve() {
-    tokio::spawn(serve());
+    tokio::spawn(serve(
+        "echo".to_string(),
+        vec![r#"{"body": "hai"}"#.to_string()],
+    ));
     // give the server a chance to start
     tokio::time::sleep(std::time::Duration::from_millis(1)).await;
 
@@ -125,4 +130,16 @@ async fn test_serve() {
         "text/html; charset=utf8",
     );
     assert_eq!(resp.text().await.unwrap(), "hai");
+}
+
+fn with_command(
+    command: String,
+) -> impl Filter<Extract = (String,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || command.clone())
+}
+
+fn with_args(
+    args: Vec<String>,
+) -> impl Filter<Extract = (Vec<String>,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || args.clone())
 }
