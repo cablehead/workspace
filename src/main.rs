@@ -8,10 +8,10 @@ use warp::Filter;
 
 #[tokio::main]
 async fn main() {
-    serve("echo".to_string(), vec![r#"{"body": "hai"}"#.to_string()]).await
+    serve("echo".to_string(), vec![r#"{"body": "hai"}"#.to_string()], 3030).await
 }
 
-async fn serve(command: String, args: Vec<String>) {
+async fn serve(command: String, args: Vec<String>, port: u16) {
     let ws = warp::ws()
         .and(warp::path::full())
         .and(warp::header::headers_cloned())
@@ -36,7 +36,7 @@ async fn serve(command: String, args: Vec<String>) {
         .and(with_args(args))
         .and_then(http);
 
-    warp::serve(ws.or(http)).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(ws.or(http)).run(([127, 0, 0, 1], port)).await;
 }
 
 pub async fn http(
@@ -114,10 +114,11 @@ async fn test_process() {
 }
 
 #[tokio::test]
-async fn test_serve() {
+async fn test_serve_defaults() {
     tokio::spawn(serve(
         "echo".to_string(),
         vec![r#"{"body": "hai"}"#.to_string()],
+        3030,
     ));
     // give the server a chance to start
     tokio::time::sleep(std::time::Duration::from_millis(1)).await;
@@ -130,6 +131,26 @@ async fn test_serve() {
         "text/html; charset=utf8",
     );
     assert_eq!(resp.text().await.unwrap(), "hai");
+}
+
+#[tokio::test]
+async fn test_serve_override() {
+    tokio::spawn(serve(
+        "echo".to_string(),
+        vec![r#"{"body": "sorry", "status": 404, "content-type": "text/plain"}"#.to_string()],
+        3031,
+    ));
+    // give the server a chance to start
+    tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+
+    let resp = reqwest::get("http://127.0.0.1:3031/").await.unwrap();
+
+    assert_eq!(resp.status(), 200);
+    assert_eq!(
+        resp.headers().get("content-type").unwrap(),
+        "text/html; charset=utf8",
+    );
+    assert_eq!(resp.text().await.unwrap(), "sorry");
 }
 
 fn with_command(
