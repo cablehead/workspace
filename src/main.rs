@@ -7,6 +7,15 @@ use serde::{Deserialize, Serialize};
 
 use warp::Filter;
 
+/*
+ * todo:
+ * - rework HTTP to take uri + headers as an optional command line arg
+ *  - and optionally as fd:4
+ *  - then the request body can be streamed to stdin
+ * - respond with status code and headers via fd:5?
+ *  - then stdout can stream to the response body
+ */
+
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]
