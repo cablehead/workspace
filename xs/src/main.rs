@@ -4,7 +4,7 @@ use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, AppSettings};
 use rusqlite;
 use rusqlite::{params, Connection, Row};
 use serde::{Deserialize, Serialize, Serializer};
@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize, Serializer};
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]
+#[clap(global_setting(AppSettings::DisableHelpSubcommand))]
 struct Args {
     #[clap(value_parser)]
     path: String,
