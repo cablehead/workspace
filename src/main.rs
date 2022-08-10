@@ -1,9 +1,9 @@
-use futures_util::{StreamExt, SinkExt};
+use futures_util::{SinkExt, StreamExt};
 
 use tokio::io::AsyncWriteExt;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
-use clap::Parser;
+use clap::{Args, Parser};
 use serde::{Deserialize, Serialize};
 
 use warp::Filter;
@@ -20,7 +20,26 @@ use warp::Filter;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]
-struct Args {
+struct Cli {
+    #[clap(
+        short,
+        long,
+        value_parser,
+        multiple_values = true,
+        value_terminator = ";",
+        value_name = "COMMAND"
+    )]
+    // TODO: how to get clap to take this as a <COMMAND> [ARGS]...??
+    websocket: Option<Vec<String>>,
+
+    #[clap(value_parser)]
+    command: String,
+    #[clap(value_parser)]
+    args: Vec<String>,
+}
+
+#[derive(Args, Debug)]
+struct CommandLine {
     #[clap(value_parser)]
     command: String,
     #[clap(value_parser)]
@@ -29,11 +48,11 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
-    let args = Args::parse();
-    serve(args.command, args.args, 3030).await
+    let args = Cli::parse();
+    serve(args.command, args.args, args.websocket, 3030).await
 }
 
-async fn serve(command: String, args: Vec<String>, port: u16) {
+async fn serve(command: String, args: Vec<String>, websocket: Option<Vec<String>>, port: u16) {
     fn with_command(
         command: String,
     ) -> impl Filter<Extract = (String,), Error = std::convert::Infallible> + Clone {
@@ -48,14 +67,32 @@ async fn serve(command: String, args: Vec<String>, port: u16) {
 
     let base = warp::method()
         .and(warp::path::full())
-        .and(warp::header::headers_cloned())
+        .and(warp::header::headers_cloned());
+
+    let route_http = base
+        .clone()
         .and(with_command(command))
-        .and(with_args(args));
+        .and(with_args(args))
+        .and(warp::body::bytes())
+        .and_then(handle_http);
 
-    let ws = base.clone().and(warp::ws()).and_then(handle_ws);
-    let http = base.clone().and(warp::body::bytes()).and_then(handle_http);
+    if let Some(mut args) = websocket {
+        let command = args.remove(0);
+        let route_ws = base
+            .clone()
+            .and(with_command(command))
+            .and(with_args(args))
+            .and(warp::ws())
+            .and_then(handle_ws);
+        // TODO: I can't get rust to allow assigning this to a variable and then making a single
+        // call to warp::serve
+        warp::serve(route_ws.or(route_http))
+            .run(([127, 0, 0, 1], port))
+            .await;
+        return;
+    };
 
-    warp::serve(ws.or(http)).run(([127, 0, 0, 1], port)).await;
+    warp::serve(route_http).run(([127, 0, 0, 1], port)).await;
 }
 
 pub async fn handle_ws(
@@ -80,7 +117,9 @@ pub async fn handle_ws(
         let buf = BufReader::new(stdout);
         let mut lines = buf.lines();
         while let Some(line) = lines.next_line().await.expect("todo") {
-            tx.send(warp::ws::Message::text(line)).await.expect("moar todo");
+            tx.send(warp::ws::Message::text(line))
+                .await
+                .expect("moar todo");
         }
 
         println!("peace")
@@ -179,6 +218,7 @@ async fn test_serve_defaults() {
     tokio::spawn(serve(
         "echo".to_string(),
         vec![r#"{"body": "hai"}"#.to_string()],
+        None,
         3030,
     ));
     // give the server a chance to start
@@ -206,6 +246,7 @@ async fn test_serve_override() {
             }
         }"#
         .to_string()],
+        None,
         3031,
     ));
     // give the server a chance to start
