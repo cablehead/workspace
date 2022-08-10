@@ -1,6 +1,5 @@
-use futures_util::{FutureExt, StreamExt};
+use futures_util::{StreamExt, SinkExt};
 
-use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
@@ -75,15 +74,18 @@ pub async fn handle_ws(
             .spawn()
             .expect("failed to spawn");
 
+        let (mut tx, rx) = websocket.split();
+
         let stdout = p.stdout.take().unwrap();
         let buf = BufReader::new(stdout);
         let mut lines = buf.lines();
         while let Some(line) = lines.next_line().await.expect("todo") {
-            println!("length = {}", line.len())
+            tx.send(warp::ws::Message::text(line)).await.expect("moar todo");
         }
 
+        println!("peace")
+
         /*
-        let (tx, rx) = websocket.split();
         rx.forward(tx).map(|result| {
             if let Err(e) = result {
                 eprintln!("websocket error: {:?}", e);
