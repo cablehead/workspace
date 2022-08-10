@@ -1,6 +1,8 @@
 use futures_util::{FutureExt, StreamExt};
 
+use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -65,15 +67,29 @@ pub async fn handle_ws(
     args: Vec<String>,
     ws: warp::ws::Ws,
 ) -> Result<impl warp::Reply, std::convert::Infallible> {
-    Ok(ws.on_upgrade(move |websocket| {
-        println!("{:?}", path);
-        println!("{:?}", headers);
+    Ok(ws.on_upgrade(move |websocket| async {
+        let mut p = tokio::process::Command::new(command)
+            .args(args)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("failed to spawn");
+
+        let stdout = p.stdout.take().unwrap();
+        let buf = BufReader::new(stdout);
+        let mut lines = buf.lines();
+        while let Some(line) = lines.next_line().await.expect("todo") {
+            println!("length = {}", line.len())
+        }
+
+        /*
         let (tx, rx) = websocket.split();
         rx.forward(tx).map(|result| {
             if let Err(e) = result {
                 eprintln!("websocket error: {:?}", e);
             }
         })
+        */
     }))
 }
 
