@@ -51,13 +51,8 @@ async fn serve(command: String, args: Vec<String>, port: u16) {
         .and(with_command(command))
         .and(with_args(args));
 
-    let ws = base.clone()
-        .and(warp::ws())
-        .and_then(handle_ws);
-
-    let http = base.clone()
-        .and(warp::body::bytes())
-        .and_then(handle_http);
+    let ws = base.clone().and(warp::ws()).and_then(handle_ws);
+    let http = base.clone().and(warp::body::bytes()).and_then(handle_http);
 
     warp::serve(ws.or(http)).run(([127, 0, 0, 1], port)).await;
 }
@@ -70,17 +65,16 @@ pub async fn handle_ws(
     args: Vec<String>,
     ws: warp::ws::Ws,
 ) -> Result<impl warp::Reply, std::convert::Infallible> {
-
-            Ok(ws.on_upgrade(move |websocket| {
-                println!("{:?}", path);
-                println!("{:?}", headers);
-                let (tx, rx) = websocket.split();
-                rx.forward(tx).map(|result| {
-                    if let Err(e) = result {
-                        eprintln!("websocket error: {:?}", e);
-                    }
-                })
-            }))
+    Ok(ws.on_upgrade(move |websocket| {
+        println!("{:?}", path);
+        println!("{:?}", headers);
+        let (tx, rx) = websocket.split();
+        rx.forward(tx).map(|result| {
+            if let Err(e) = result {
+                eprintln!("websocket error: {:?}", e);
+            }
+        })
+    }))
 }
 
 pub async fn handle_http(
