@@ -33,22 +33,6 @@ async fn main() {
 }
 
 async fn serve(command: String, args: Vec<String>, port: u16) {
-    let ws = warp::ws()
-        .and(warp::path::full())
-        .and(warp::header::headers_cloned())
-        .map(|ws: warp::ws::Ws, path, headers| {
-            ws.on_upgrade(move |websocket| {
-                println!("{:?}", path);
-                println!("{:?}", headers);
-                let (tx, rx) = websocket.split();
-                rx.forward(tx).map(|result| {
-                    if let Err(e) = result {
-                        eprintln!("websocket error: {:?}", e);
-                    }
-                })
-            })
-        });
-
     fn with_command(
         command: String,
     ) -> impl Filter<Extract = (String,), Error = std::convert::Infallible> + Clone {
@@ -61,24 +45,51 @@ async fn serve(command: String, args: Vec<String>, port: u16) {
         warp::any().map(move || args.clone())
     }
 
-    let http = warp::method()
+    let base = warp::method()
         .and(warp::path::full())
         .and(warp::header::headers_cloned())
-        .and(warp::body::bytes())
         .and(with_command(command))
-        .and(with_args(args))
-        .and_then(http);
+        .and(with_args(args));
+
+    let ws = base.clone()
+        .and(warp::ws())
+        .and_then(handle_ws);
+
+    let http = base.clone()
+        .and(warp::body::bytes())
+        .and_then(handle_http);
 
     warp::serve(ws.or(http)).run(([127, 0, 0, 1], port)).await;
 }
 
-pub async fn http(
+pub async fn handle_ws(
     method: http::method::Method,
     path: warp::filters::path::FullPath,
     headers: http::header::HeaderMap,
-    body: warp::hyper::body::Bytes,
     command: String,
     args: Vec<String>,
+    ws: warp::ws::Ws,
+) -> Result<impl warp::Reply, std::convert::Infallible> {
+
+            Ok(ws.on_upgrade(move |websocket| {
+                println!("{:?}", path);
+                println!("{:?}", headers);
+                let (tx, rx) = websocket.split();
+                rx.forward(tx).map(|result| {
+                    if let Err(e) = result {
+                        eprintln!("websocket error: {:?}", e);
+                    }
+                })
+            }))
+}
+
+pub async fn handle_http(
+    method: http::method::Method,
+    path: warp::filters::path::FullPath,
+    headers: http::header::HeaderMap,
+    command: String,
+    args: Vec<String>,
+    body: warp::hyper::body::Bytes,
 ) -> Result<impl warp::Reply, std::convert::Infallible> {
     #[derive(Serialize, Deserialize)]
     struct Request {
