@@ -109,29 +109,43 @@ pub async fn handle_ws(
             .args(args)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
+            // todo: stderr
             .spawn()
             .expect("failed to spawn");
 
-        let (mut tx, rx) = websocket.split();
+        let (mut tx, mut rx) = websocket.split();
 
+        // relay websocket messages to the child processes stdin
+        let mut stdin = p.stdin.take().unwrap();
+        tokio::spawn(async move {
+            while let Some(message) = rx.next().await {
+                let message = format!(
+                    "stdin: {}\n",
+                    message
+                        .expect("todo: handle different new types?")
+                        .to_str()
+                        .unwrap()
+                );
+                stdin
+                    .write_all(message.as_bytes())
+                    .await
+                    .expect("what should happen when the child processes stdin closes?");
+            }
+        });
+
+        // relay the child processes stdout to the websocket
         let stdout = p.stdout.take().unwrap();
         let buf = BufReader::new(stdout);
         let mut lines = buf.lines();
+
         while let Some(line) = lines.next_line().await.expect("todo") {
             tx.send(warp::ws::Message::text(line))
                 .await
                 .expect("moar todo");
         }
 
-        println!("peace")
-
-        /*
-        rx.forward(tx).map(|result| {
-            if let Err(e) = result {
-                eprintln!("websocket error: {:?}", e);
-            }
-        })
-        */
+        let status = p.wait().await.expect("command wasn't running");
+        println!("peace: {:>}", status);
     }))
 }
 
