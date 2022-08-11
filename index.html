@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>http-sh: test page</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
+  <link href="https://cdn.skypack.dev/sanitize.css" rel="stylesheet" />
+  <link href="https://unpkg.com/sanitize.css/forms.css" rel="stylesheet" />
+  <link href="https://unpkg.com/sanitize.css/assets.css" rel="stylesheet" />
+  <link href="https://unpkg.com/sanitize.css/reduce-motion.css" rel="stylesheet" />
+  <link href="https://unpkg.com/sanitize.css/system-ui.css" rel="stylesheet" />
+  <link href="https://unpkg.com/sanitize.css/ui-monospace.css" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+  Hi
+
+  <script>
+    var ws
+
+    var commands = {
+      log: (...args) => {
+        console.log('command.log', ...args)
+      },
+      patch: (name, code) => {
+        let h = eval(code)
+        commands[name] = h
+        return h
+      },
+      content: (html) => {
+        document.body.innerHTML = html
+      },
+      css: () => {
+        document.querySelector('link[href="css/main.css"]').href = "css/main.css"
+      },
+      reload: () => {
+        location.reload()
+      },
+    }
+
+    const reconnect = () => {
+      console.log('reconnect', ws)
+      ws = new WebSocket('ws://' + window.location.hostname + ':3030/')
+      ws = ws
+
+      ws.onopen = function() {
+        console.log('connected')
+      }
+
+      ws.onmessage = function (event) {
+        console.log('event:', event.data)
+        // var data = JSON.parse(event.data)
+        // console.log(commands[data['c']].apply(null, data['a'] ? data['a'] : []))
+      }
+
+      ws.onclose = function(event) {
+        console.log('close', event)
+        ws = null
+        setTimeout(reconnect, 1000)
+      }
+    }
+    reconnect()
+  </script>
+</body>
+</html>

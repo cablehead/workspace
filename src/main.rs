@@ -26,6 +26,7 @@ struct Cli {
         long,
         value_parser,
         multiple_values = true,
+        allow_hyphen_values = true,
         value_terminator = ";",
         value_name = "COMMAND"
     )]
