@@ -398,25 +398,15 @@ fn call_stream(conn: &Connection, topic: &String) -> Result<()> {
 
     println!("{:?}", source_id);
 
-    {
-        let topic = topic.clone();
-        std::thread::spawn(move || {
-            let buf = std::io::BufReader::new(std::io::stdin());
-            for line in buf.lines() {
-                let line = line.unwrap();
-                add(
-                    &conn,
-                    &topic,
-                    &String::from(".recv"),
-                    Some(source_id),
-                    None,
-                    Some(&line),
-                    None,
-                    0,
-                ).unwrap();
-            }
-        });
-    }
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    std::thread::spawn(move || {
+        let buf = std::io::BufReader::new(std::io::stdin());
+        for line in buf.lines() {
+            tx.send(line.expect("handle line err"))
+                .expect("handle channel close please");
+        }
+    });
 
     let mut cursor = source_id;
     let mut stmt =
@@ -434,7 +424,19 @@ fn call_stream(conn: &Connection, topic: &String) -> Result<()> {
             }
             Err(err) => match err {
                 rusqlite::Error::QueryReturnedNoRows => {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    if let Ok(line) = rx.recv_timeout(std::time::Duration::from_millis(100)) {
+                        add(
+                            &conn,
+                            &topic,
+                            &String::from(".recv"),
+                            Some(source_id),
+                            None,
+                            Some(&line),
+                            None,
+                            0,
+                        )
+                        .unwrap();
+                    }
                 }
                 _ => return Err(err).map_err(anyhow::Error::from),
             },
