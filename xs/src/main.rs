@@ -1,6 +1,6 @@
+use std::io::BufRead;
 use std::io::Read;
 use std::io::Write;
-use std::io::BufRead;
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -24,7 +24,17 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    // List items
+    Add {
+        #[clap(value_parser)]
+        topic: String,
+        #[clap(value_parser)]
+        attribute: String,
+        #[clap(value_parser)]
+        stdout: String,
+        #[clap(long, value_parser)]
+        source_id: Option<i32>,
+    },
+
     List {},
 
     Replay {
@@ -87,8 +97,6 @@ enum Commands {
     },
 }
 
-
-
 #[derive(Debug, Serialize, Deserialize)]
 struct Item {
     id: i32,
@@ -120,6 +128,10 @@ fn main() -> Result<()> {
     create(&conn)?;
 
     match &args.command {
+        Commands::Add { topic, attribute, stdout, source_id } => {
+            add(&conn, topic, attribute, *source_id, None, Some(&stdout), None, 0)?;
+        }
+
         Commands::List {} => {
             list(&conn)?;
         }
@@ -199,7 +211,7 @@ fn add(
     data: Option<&String>,
     err: Option<&String>,
     code: i32,
-) -> Result<i64> {
+) -> Result<i32> {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
     let id = conn
         .prepare(
@@ -218,7 +230,7 @@ fn add(
             err,
             code,
         ])?;
-    Ok(id)
+    Ok(id.try_into().unwrap())
 }
 
 fn create_item(row: &Row) -> rusqlite::Result<Item> {
@@ -321,7 +333,16 @@ fn poll(conn: &Connection, id: &i32) -> Result<()> {
 fn call(conn: &Connection, topic: &String, response: &String) -> Result<()> {
     let mut data = String::new();
     std::io::stdin().read_to_string(&mut data)?;
-    let id = add(&conn, &topic, &String::from(".request"), None, None, Some(&data), None, 0)?;
+    let id = add(
+        &conn,
+        &topic,
+        &String::from(".request"),
+        None,
+        None,
+        Some(&data),
+        None,
+        0,
+    )?;
 
     let mut stmt =
         conn.prepare("select * from stream where topic = ? and source_id = ? limit 1;")?;
@@ -350,18 +371,59 @@ fn call(conn: &Connection, topic: &String, response: &String) -> Result<()> {
 }
 
 fn call_stream(conn: &Connection, topic: &String) -> Result<()> {
-    let id = add(&conn, &topic, &String::from(".open"), None, None, None, None, 0)?;
+    let source_id = add(
+        &conn,
+        &topic,
+        &String::from(".open"),
+        None,
+        None,
+        None,
+        None,
+        0,
+    )?;
 
-    println!("{:?}", id);
+    println!("{:?}", source_id);
 
-    std::thread::spawn(|| {
-        let buf = std::io::BufReader::new(std::io::stdin());
-        for line in buf.lines() {
-            let line = line.unwrap();
-            // send to topic.recv
-            println!("{:?}", line);
-        }
-    });
+    {
+        let topic = topic.clone();
+        std::thread::spawn(move || {
+            let buf = std::io::BufReader::new(std::io::stdin());
+            for line in buf.lines() {
+                let line = line.unwrap();
+                // send to topic.recv
+                println!("{:?} {:?}", line, &topic);
+            }
+        });
+    }
+
+    let mut cursor = source_id;
+    let mut stmt =
+        conn.prepare("select * from stream where topic = ? and source_id = ? and id > ? limit 1;")?;
+
+    loop {
+        match stmt.query_row(params![topic, source_id, cursor], create_item) {
+            Ok(item) => {
+                println!("send: {:?}", item);
+                /*
+                if let Some(data) = item.data {
+                    std::io::stdout().write_all(&data.as_bytes())?;
+                }
+                if let Some(err) = item.err {
+                    std::io::stderr().write_all(&err.as_bytes())?;
+                }
+                std::process::exit(item.code);
+                break;
+                */
+                cursor = item.id;
+            }
+            Err(err) => match err {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                _ => return Err(err).map_err(anyhow::Error::from),
+            },
+        };
+    }
 
     /*
     let mut data = String::new();
