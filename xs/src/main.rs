@@ -128,8 +128,22 @@ fn main() -> Result<()> {
     create(&conn)?;
 
     match &args.command {
-        Commands::Add { topic, attribute, stdout, source_id } => {
-            add(&conn, topic, attribute, *source_id, None, Some(&stdout), None, 0)?;
+        Commands::Add {
+            topic,
+            attribute,
+            stdout,
+            source_id,
+        } => {
+            add(
+                &conn,
+                topic,
+                attribute,
+                *source_id,
+                None,
+                Some(&stdout),
+                None,
+                0,
+            )?;
         }
 
         Commands::List {} => {
@@ -208,9 +222,9 @@ fn add(
     attribute: &String,
     source_id: Option<i32>,
     parent_id: Option<i32>,
-    data: Option<&String>,
-    err: Option<&String>,
-    code: i32,
+    stdout: Option<&String>,
+    stderr: Option<&String>,
+    status: i32,
 ) -> Result<i32> {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
     let id = conn
@@ -226,9 +240,9 @@ fn add(
             stamp.to_le_bytes(),
             source_id,
             parent_id,
-            data,
-            err,
-            code,
+            stdout,
+            stderr,
+            status,
         ])?;
     Ok(id.try_into().unwrap())
 }
@@ -390,8 +404,16 @@ fn call_stream(conn: &Connection, topic: &String) -> Result<()> {
             let buf = std::io::BufReader::new(std::io::stdin());
             for line in buf.lines() {
                 let line = line.unwrap();
-                // send to topic.recv
-                println!("{:?} {:?}", line, &topic);
+                add(
+                    &conn,
+                    &topic,
+                    &String::from(".recv"),
+                    Some(source_id),
+                    None,
+                    Some(&line),
+                    None,
+                    0,
+                ).unwrap();
             }
         });
     }
