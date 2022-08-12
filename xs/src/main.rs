@@ -108,10 +108,10 @@ struct Item {
     #[serde(skip_serializing_if = "Option::is_none")]
     parent_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    data: Option<String>,
+    stdout: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    err: Option<String>,
-    code: i32,
+    stderr: Option<String>,
+    status: i32,
 }
 
 pub fn as_base64<S: Serializer>(v: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error> {
@@ -192,9 +192,9 @@ fn create(conn: &Connection) -> Result<()> {
            stamp BLOB NOT NULL,
            source_id INTEGER,
            parent_id INTEGER,
-           data TEXT,
-           err TEXT,
-           code INTEGER NOT NULL
+           stdout TEXT,
+           stderr TEXT,
+           status INTEGER NOT NULL
         )",
         [],
     )?;
@@ -216,7 +216,7 @@ fn add(
     let id = conn
         .prepare(
             "INSERT INTO stream
-        (topic, attribute, stamp, source_id, parent_id, data, err, code)
+        (topic, attribute, stamp, source_id, parent_id, stdout, stderr, status)
         VALUES
         (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         )?
@@ -241,9 +241,9 @@ fn create_item(row: &Row) -> rusqlite::Result<Item> {
         stamp: u128::from_le_bytes(row.get(3)?),
         source_id: row.get(4)?,
         parent_id: row.get(5)?,
-        data: row.get(6)?,
-        err: row.get(7)?,
-        code: row.get(8)?,
+        stdout: row.get(6)?,
+        stderr: row.get(7)?,
+        status: row.get(8)?,
     })
 }
 
@@ -259,13 +259,13 @@ fn list(conn: &Connection) -> Result<()> {
 fn replay(conn: &Connection, id: &i32) -> Result<()> {
     let mut stmt = conn.prepare("select * from stream where id = ?1 limit 1;")?;
     let item = stmt.query_row([id], create_item)?;
-    if let Some(data) = item.data {
-        std::io::stdout().write_all(&data.as_bytes())?;
+    if let Some(stdout) = item.stdout {
+        std::io::stdout().write_all(&stdout.as_bytes())?;
     }
-    if let Some(err) = item.err {
-        std::io::stderr().write_all(&err.as_bytes())?;
+    if let Some(stderr) = item.stderr {
+        std::io::stderr().write_all(&stderr.as_bytes())?;
     }
-    std::process::exit(item.code);
+    std::process::exit(item.status);
     Ok(())
 }
 
@@ -278,9 +278,9 @@ fn run(
 ) -> Result<()> {
     let mut stmt = conn.prepare("select * from stream where id = ?1 limit 1;")?;
     let item = stmt.query_row([id], create_item)?;
-    if item.code != 0 {
-        println!("code=={} TODO: output err", item.code);
-        std::process::exit(item.code);
+    if item.status != 0 {
+        println!("status=={} TODO: output err", item.status);
+        std::process::exit(item.status);
     }
 
     let mut p = process::Command::new(command)
@@ -291,7 +291,7 @@ fn run(
         .spawn()?;
     {
         let mut stdin = p.stdin.take().unwrap();
-        stdin.write_all(&item.data.unwrap().as_bytes())?;
+        stdin.write_all(&item.stdout.unwrap().as_bytes())?;
     }
 
     let res = p.wait_with_output()?;
@@ -349,13 +349,13 @@ fn call(conn: &Connection, topic: &String, response: &String) -> Result<()> {
     loop {
         match stmt.query_row(params![response, id], create_item) {
             Ok(item) => {
-                if let Some(data) = item.data {
-                    std::io::stdout().write_all(&data.as_bytes())?;
+                if let Some(stdout) = item.stdout {
+                    std::io::stdout().write_all(&stdout.as_bytes())?;
                 }
-                if let Some(err) = item.err {
-                    std::io::stderr().write_all(&err.as_bytes())?;
+                if let Some(stderr) = item.stderr {
+                    std::io::stderr().write_all(&stderr.as_bytes())?;
                 }
-                std::process::exit(item.code);
+                std::process::exit(item.status);
                 break;
             }
             Err(err) => match err {
@@ -401,19 +401,13 @@ fn call_stream(conn: &Connection, topic: &String) -> Result<()> {
         conn.prepare("select * from stream where topic = ? and source_id = ? and id > ? limit 1;")?;
 
     loop {
+        let mut stdout = std::io::stdout();
         match stmt.query_row(params![topic, source_id, cursor], create_item) {
             Ok(item) => {
-                println!("send: {:?}", item);
-                /*
-                if let Some(data) = item.data {
-                    std::io::stdout().write_all(&data.as_bytes())?;
+                match item.attribute.as_str() {
+                    ".send" => writeln!(stdout, "{}", &item.stdout.unwrap())?,
+                    _ => println!("TODO: {:?}", item),
                 }
-                if let Some(err) = item.err {
-                    std::io::stderr().write_all(&err.as_bytes())?;
-                }
-                std::process::exit(item.code);
-                break;
-                */
                 cursor = item.id;
             }
             Err(err) => match err {
@@ -424,34 +418,6 @@ fn call_stream(conn: &Connection, topic: &String) -> Result<()> {
             },
         };
     }
-
-    /*
-    let mut data = String::new();
-    std::io::stdin().read_to_string(&mut data)?;
-
-    let mut stmt =
-        conn.prepare("select * from stream where topic = ? and source_id = ? limit 1;")?;
-    loop {
-        match stmt.query_row(params![response, id], create_item) {
-            Ok(item) => {
-                if let Some(data) = item.data {
-                    std::io::stdout().write_all(&data.as_bytes())?;
-                }
-                if let Some(err) = item.err {
-                    std::io::stderr().write_all(&err.as_bytes())?;
-                }
-                std::process::exit(item.code);
-                break;
-            }
-            Err(err) => match err {
-                rusqlite::Error::QueryReturnedNoRows => {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                }
-                _ => return Err(err).map_err(anyhow::Error::from),
-            },
-        };
-    }
-    */
 
     Ok(())
 }
