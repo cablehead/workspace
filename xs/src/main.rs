@@ -396,8 +396,6 @@ fn call_stream(conn: &Connection, topic: &String) -> Result<()> {
         0,
     )?;
 
-    println!("{:?}", source_id);
-
     let (tx, rx) = std::sync::mpsc::channel();
 
     std::thread::spawn(move || {
@@ -418,7 +416,8 @@ fn call_stream(conn: &Connection, topic: &String) -> Result<()> {
             Ok(item) => {
                 match item.attribute.as_str() {
                     ".send" => writeln!(stdout, "{}", &item.stdout.unwrap())?,
-                    _ => println!("TODO: {:?}", item),
+                    ".revc" => (),
+                    _ => eprintln!("TODO: {:?}", item),
                 }
                 cursor = item.id;
             }
