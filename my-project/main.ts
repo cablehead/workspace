@@ -7,7 +7,6 @@
 import { start } from "$fresh/server.ts";
 import manifest from "./fresh.gen.ts";
 
-
-console.log(Deno.env.get("API_HOST"))
+window.API_HOST = Deno.env.get("API_HOST")
 
 await start(manifest);

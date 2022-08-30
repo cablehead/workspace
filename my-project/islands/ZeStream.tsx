@@ -6,9 +6,9 @@ const DISCONNECTED = "🔴 Disconnected";
 const CONNECTING = "🟡 Connecting...";
 const CONNECTED = "🟢 Connected";
 
-const API_HOST = Deno.env.get("API_HOST");
+export default function ZeStream(props: PageProps) {
 
-export default function ZeStream() {
+console.log("props", props.source);
   const [status, setStatus] = useState(DISCONNECTED);
   const [messages, addMessage] = useReducer<string[], string>(
     (msgs, msg) => [...msgs, msg],
@@ -16,7 +16,7 @@ export default function ZeStream() {
   );
 
   useEffect(() => {
-    const events = new EventSource(API_HOST);
+    const events = new EventSource(props.source);
     setStatus(CONNECTING);
     events.addEventListener("open", () => setStatus(CONNECTED));
     events.addEventListener("error", () => {
