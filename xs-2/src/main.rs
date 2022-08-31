@@ -19,6 +19,9 @@ enum Commands {
     Cat {
         #[clap(short, long, action)]
         follow: bool,
+
+        #[clap(long, action)]
+        sse: bool,
     },
 }
 
@@ -45,7 +48,7 @@ fn main() {
                 .unwrap();
             q.next().unwrap();
         }
-        Commands::Cat { follow } => {
+        Commands::Cat { follow, sse } => {
             let mut last = 0;
             loop {
                 let mut q = conn
@@ -56,7 +59,10 @@ fn main() {
                 while let sqlite::State::Row = q.next().unwrap() {
                     last = q.read(0).unwrap();
                     let data = q.read::<String>(1).unwrap();
-                    println!("{}", data);
+                    match sse {
+                        true => println!("data: {}\n", data),
+                        false => println!("{}", data),
+                    }
                 }
                 if !follow {
                     break;
