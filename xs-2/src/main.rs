@@ -54,6 +54,12 @@ fn main() {
 
         Commands::Cat { follow, sse, last_id } => {
             let mut last_id = last_id.unwrap_or(0);
+
+            // send a comment to establish the connection
+            if *sse {
+                println!(": welcome");
+            }
+
             loop {
                 let mut q = conn
                     .prepare("SELECT id, data FROM stream WHERE id > ? ORDER BY id ASC")
