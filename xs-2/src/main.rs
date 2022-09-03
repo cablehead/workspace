@@ -48,6 +48,7 @@ fn main() {
                 .unwrap();
             q.next().unwrap();
         }
+
         Commands::Cat { follow, sse } => {
             let mut last = 0;
             loop {
@@ -59,8 +60,13 @@ fn main() {
                 while let sqlite::State::Row = q.next().unwrap() {
                     last = q.read(0).unwrap();
                     let data = q.read::<String>(1).unwrap();
+
                     match sse {
-                        true => println!("data: {}\n", data),
+                        true => {
+                            println!("id: {}", last);
+                            let data = data.trim().replace("\n", "\ndata: ");
+                            println!("data: {}\n", data);
+                        }
                         false => println!("{}", data),
                     }
                 }
