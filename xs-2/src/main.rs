@@ -22,6 +22,9 @@ enum Commands {
 
         #[clap(long, action)]
         sse: bool,
+
+        #[clap(short, long, value_parser)]
+        last_id: Option<i64>,
     },
 }
 
@@ -49,21 +52,21 @@ fn main() {
             q.next().unwrap();
         }
 
-        Commands::Cat { follow, sse } => {
-            let mut last = 0;
+        Commands::Cat { follow, sse, last_id } => {
+            let mut last_id = last_id.unwrap_or(0);
             loop {
                 let mut q = conn
                     .prepare("SELECT id, data FROM stream WHERE id > ? ORDER BY id ASC")
                     .unwrap()
-                    .bind(1, last)
+                    .bind(1, last_id)
                     .unwrap();
                 while let sqlite::State::Row = q.next().unwrap() {
-                    last = q.read(0).unwrap();
+                    last_id = q.read(0).unwrap();
                     let data = q.read::<String>(1).unwrap();
 
                     match sse {
                         true => {
-                            println!("id: {}", last);
+                            println!("id: {}", last_id);
                             let data = data.trim().replace("\n", "\ndata: ");
                             println!("data: {}\n", data);
                         }
