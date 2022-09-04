@@ -2,16 +2,16 @@
 import { h } from "preact";
 import { useEffect, useState, useReducer } from "preact/hooks";
 
+import { Item } from "../components/Item.tsx";
+
 const DISCONNECTED = "🔴 Disconnected";
 const CONNECTING = "🟡 Connecting...";
 const CONNECTED = "🟢 Connected";
 
 export default function ZeStream(props: PageProps) {
-
-console.log("props", props.source);
   const [status, setStatus] = useState(DISCONNECTED);
   const [messages, addMessage] = useReducer<string[], string>(
-    (msgs, msg) => [...msgs, msg],
+    (msgs, msg) => [msg, ...msgs],
     [],
   );
 
@@ -33,21 +33,18 @@ console.log("props", props.source);
       }
     });
     events.addEventListener("message", (e) => {
-    	console.log(e);
-      addMessage(e.data);
+	let data = JSON.parse(e.data);
+	let plain = atob(data.types["public.utf8-plain-text"]);
+      addMessage(plain);
     });
   }, []);
 
   return (
     <div>
       <p>Status: {status}</p>
-      <ul>
-        {messages.map((msg) => (
-          <li>
-	  	foo {msg}
-          </li>
+        {messages.map((msg, i) => (
+	<Item selected={ i==1}>{ msg }</Item>
         ))}
-      </ul>
     </div>
   );
 }
