@@ -1,6 +1,5 @@
 import { MiddlewareHandlerContext } from "$fresh/server.ts";
 
-
 export async function handler(
   req: Request,
   ctx: MiddlewareHandlerContext,
@@ -10,7 +9,3 @@ export async function handler(
   resp.headers.set("server", "fresh server");
   return resp;
 }
-
-
-
-

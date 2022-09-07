@@ -11,17 +11,16 @@ export default function Home() {
         alt="the fresh logo: a sliced lemon dripping with juice"
       />
       <p>
-      	Wha? I need to refresh?
-	Oh, phew
+        Wha? I need to refresh? Oh, phew
       </p>
       <div style="display: flex; gap: 10px;">
-      <a href="/countdown">countdown</a>
-      <a href="/random-uuid">uuid</a>
-      <a href="/stream">stream</a>
-      <a href="/github/cablehead">cablehead</a>
-      <a href="/greet/me">greet me</a>
-      <a href="/search">search</a>
-      <a href="/about">about</a>
+        <a href="/countdown">countdown</a>
+        <a href="/random-uuid">uuid</a>
+        <a href="/stream">stream</a>
+        <a href="/github/cablehead">cablehead</a>
+        <a href="/greet/me">greet me</a>
+        <a href="/search">search</a>
+        <a href="/about">about</a>
       </div>
       <Counter start={3} />
     </div>
