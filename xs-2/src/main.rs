@@ -1,3 +1,4 @@
+use std::io::BufRead;
 use std::io::Read;
 
 use clap::{AppSettings, Parser, Subcommand};
@@ -15,7 +16,11 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    Put {},
+    Put {
+        #[clap(short, long, action, help = "Stream stdin, putting an item per line")]
+        follow: bool,
+    },
+
     Cat {
         #[clap(short, long, action)]
         follow: bool,
@@ -26,6 +31,16 @@ enum Commands {
         #[clap(short, long, value_parser)]
         last_id: Option<i64>,
     },
+}
+
+fn put_one(conn: &sqlite::Connection, data: String) {
+    let data = data.trim();
+    let mut q = conn
+        .prepare("INSERT INTO stream (data) VALUES (?)")
+        .unwrap()
+        .bind(1, data.as_bytes())
+        .unwrap();
+    q.next().unwrap();
 }
 
 fn main() {
@@ -40,19 +55,24 @@ fn main() {
     )
     .unwrap();
     match &args.command {
-        Commands::Put {} => {
-            let mut data = String::new();
-            std::io::stdin().read_to_string(&mut data).unwrap();
-            let data = data.trim();
-            let mut q = conn
-                .prepare("INSERT INTO stream (data) VALUES (?)")
-                .unwrap()
-                .bind(1, data.as_bytes())
-                .unwrap();
-            q.next().unwrap();
+        Commands::Put { follow } => {
+            if !follow {
+                let mut data = String::new();
+                std::io::stdin().read_to_string(&mut data).unwrap();
+                put_one(&conn, data);
+                return;
+            }
+
+            for line in std::io::stdin().lock().lines() {
+                put_one(&conn, line.unwrap());
+            }
         }
 
-        Commands::Cat { follow, sse, last_id } => {
+        Commands::Cat {
+            follow,
+            sse,
+            last_id,
+        } => {
             let mut last_id = last_id.unwrap_or(0);
 
             // send a comment to establish the connection
