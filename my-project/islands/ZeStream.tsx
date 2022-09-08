@@ -18,25 +18,23 @@ export default function ZeStream(props: PageProps) {
   );
   const [selected, setSelected] = useState(0);
   const handler = (event) => {
-    switch (event.key) {
-      case "ArrowLeft":
-        console.log("ArrowLeft");
-        break;
-      case "ArrowRight":
-        console.log("ArrowRight");
-        break;
-      case "ArrowUp":
+    switch (true) {
+      case event.key == "ArrowUp":
+      case event.ctrlKey && event.key == "p":
         setSelected((x) => {
           if (x > 0) x -= 1;
           return x;
         });
+        event.preventDefault();
         break;
-      case "ArrowDown":
-        console.log("messages.length:", messages.length);
+
+      case event.ctrlKey && event.key == "n":
+      case event.key == "ArrowDown":
         setSelected((x) => {
           if (x < messages.length - 1) return x + 1;
           return x;
         });
+        event.preventDefault();
         break;
     }
   };
@@ -47,6 +45,27 @@ export default function ZeStream(props: PageProps) {
       document.removeEventListener("keydown", handler);
     };
   }, [messages]);
+
+  useEffect(() => {
+    const item = document.getElementsByClassName("message-item")[selected];
+    if (!item) return;
+
+    const p = item.parentElement;
+    const offsetTop = item.offsetTop - p.offsetTop;
+    const offsetBottom = offsetTop + item.offsetHeight;
+    const clientHeight = p.clientHeight - p.offsetTop;
+
+    switch (true) {
+      case (offsetTop < p.scrollTop):
+        p.scrollTop = offsetTop;
+        break;
+
+      case (offsetBottom - p.scrollTop > clientHeight):
+        p.scrollTop = offsetBottom - clientHeight;
+        break;
+    }
+
+  }, [selected]);
 
   useEffect(() => {
     const events = new EventSource(props.source);
@@ -84,7 +103,9 @@ export default function ZeStream(props: PageProps) {
             </Item>
           ))}
         </div>
-        <div style={{ flexShrink: "1" }}><pre>{messages[selected]}</pre></div>
+        <div style={{ flexShrink: "1" }}>
+          <pre>{messages[selected]}</pre>
+        </div>
       </div>
     </div>
   );

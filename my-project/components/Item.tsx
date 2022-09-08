@@ -4,6 +4,7 @@ import { h } from "preact";
 export function Item(props) {
   return (
     <div
+      class="message-item"
       style={{
         borderBottom: "1px solid #eee",
         overflow: "hidden",
@@ -11,7 +12,7 @@ export function Item(props) {
         height: "3em",
         backgroundColor: (props.selected == props.index) && "#eee" || "#fff",
       }}
-      onClick={()=> props.setSelected(props.index)}
+      onClick={() => props.setSelected(props.index)}
       {...props}
     />
   );
