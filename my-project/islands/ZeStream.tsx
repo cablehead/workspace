@@ -34,13 +34,23 @@ export default function ZeStream(props: PageProps) {
         });
         break;
       case "ArrowDown":
-        setSelected((x) => x + 1);
+        console.log("messages.length:", messages.length);
+        setSelected((x) => {
+          if (x < messages.length - 1) return x + 1;
+          return x;
+        });
         break;
     }
   };
 
   useEffect(() => {
-    console.log("useEffect", this, messages);
+    document.addEventListener("keydown", handler);
+    return () => {
+      document.removeEventListener("keydown", handler);
+    };
+  }, [messages]);
+
+  useEffect(() => {
     const events = new EventSource(props.source);
     setStatus(CONNECTING);
 
@@ -63,8 +73,6 @@ export default function ZeStream(props: PageProps) {
       let plain = atob(data.types["public.utf8-plain-text"]);
       addMessage(plain);
     });
-
-    document.addEventListener("keydown", handler, true);
   }, []);
 
   return (
