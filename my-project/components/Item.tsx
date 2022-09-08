@@ -11,8 +11,9 @@ export function Item(props) {
         lineHeight: "3em",
         height: "3em",
         paddingLeft: "1em",
-        backgroundColor: props.selected && "#eee" || "#fff",
+        backgroundColor: (props.selected == props.index) && "#eee" || "#fff",
       }}
+      onClick={()=> props.setSelected(props.index)}
       {...props}
     />
   );

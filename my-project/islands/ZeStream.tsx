@@ -76,7 +76,7 @@ export default function ZeStream(props: PageProps) {
   return (
     <div>
       <p>Status: {status}</p>
-      {messages.map((msg, i) => <Item selected={i == selected}>{msg}</Item>)}
+      {messages.map((msg, i) => <Item index={i} selected={selected} setSelected={setSelected}>{msg}</Item>)}
     </div>
   );
 }
