@@ -16,10 +16,8 @@ export default function ZeStream(props: PageProps) {
     },
     [],
   );
-  const [selected, setSelected] = useState(1);
-
+  const [selected, setSelected] = useState(0);
   const handler = (event) => {
-    event.preventDefault();
     switch (event.key) {
       case "ArrowLeft":
         console.log("ArrowLeft");
