@@ -76,7 +76,16 @@ export default function ZeStream(props: PageProps) {
   return (
     <div>
       <p>Status: {status}</p>
-      {messages.map((msg, i) => <Item index={i} selected={selected} setSelected={setSelected}>{msg}</Item>)}
+      <div style={{ display: "flex" }}>
+        <div style={{ maxHeight: "100vh", overflow: "auto", flex: "0 0 40ch" }}>
+          {messages.map((msg, i) => (
+            <Item index={i} selected={selected} setSelected={setSelected}>
+              {msg}
+            </Item>
+          ))}
+        </div>
+        <div style={{ flexShrink: "1" }}><pre>{messages[selected]}</pre></div>
+      </div>
     </div>
   );
 }
