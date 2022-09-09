@@ -64,7 +64,6 @@ export default function ZeStream(props: PageProps) {
         p.scrollTop = offsetBottom - clientHeight;
         break;
     }
-
   }, [selected]);
 
   useEffect(() => {
@@ -87,8 +86,7 @@ export default function ZeStream(props: PageProps) {
     });
     events.addEventListener("message", (e) => {
       let data = JSON.parse(e.data);
-      let plain = atob(data.types["public.utf8-plain-text"]);
-      addMessage(plain);
+      addMessage(data);
     });
   }, []);
 
@@ -99,12 +97,12 @@ export default function ZeStream(props: PageProps) {
         <div style={{ maxHeight: "100vh", overflow: "auto", flex: "0 0 40ch" }}>
           {messages.map((msg, i) => (
             <Item index={i} selected={selected} setSelected={setSelected}>
-              {msg}
+              { atob(msg.types["public.utf8-plain-text"]) }
             </Item>
           ))}
         </div>
         <div style={{ flexShrink: "1" }}>
-          <pre>{messages[selected]}</pre>
+          <pre>{JSON.stringify(messages[selected], null, 4)}</pre>
         </div>
       </div>
     </div>
