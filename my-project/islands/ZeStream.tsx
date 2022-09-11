@@ -10,13 +10,16 @@ const CONNECTED = "🟢 Connected";
 
 export default function ZeStream(props: PageProps) {
   const [status, setStatus] = useState(DISCONNECTED);
+
   const [messages, addMessage] = useReducer<string[], string>(
-    (msgs, msg) => {
-      return [msg, ...msgs];
-    },
+    (msgs, msg) => [msg, ...msgs],
     [],
   );
+
   const [selected, setSelected] = useState(0);
+
+  const [inEdit, setInEdit] = useState(true);
+
   const handler = (event) => {
     switch (true) {
       case event.key == "ArrowUp":
@@ -36,6 +39,14 @@ export default function ZeStream(props: PageProps) {
         });
         event.preventDefault();
         break;
+
+      case event.key == "Enter":
+        setEdit(true);
+        event.preventDefault();
+        break;
+
+      default:
+        console.log(event);
     }
   };
 
@@ -97,7 +108,7 @@ export default function ZeStream(props: PageProps) {
         <div style={{ maxHeight: "100vh", overflow: "auto", flex: "0 0 40ch" }}>
           {messages.map((msg, i) => (
             <Item index={i} selected={selected} setSelected={setSelected}>
-              { atob(msg.types["public.utf8-plain-text"]) }
+              {atob(msg.types["public.utf8-plain-text"])}
             </Item>
           ))}
         </div>
