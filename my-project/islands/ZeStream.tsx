@@ -8,11 +8,10 @@ const DISCONNECTED = "🔴 Disconnected";
 const CONNECTING = "🟡 Connecting...";
 const CONNECTED = "🟢 Connected";
 
-
 function prepPreview(msg) {
-	const plain = msg.types["public.utf8-plain-text"];
-	if (plain != null) return atob(plain);
-	return "n/a";
+  const plain = msg.types["public.utf8-plain-text"];
+  if (plain != null) return atob(plain);
+  return "n/a";
 }
 
 export default function ZeStream(props: PageProps) {
@@ -109,17 +108,17 @@ export default function ZeStream(props: PageProps) {
   }, []);
 
   return (
-    <div>
+    <div style="display: grid; height:100%; overflow: auto">
       <p>Status: {status}</p>
-      <div style={{ display: "flex" }}>
-        <div style={{ maxHeight: "100vh", overflow: "auto", flex: "0 0 40ch" }}>
+      <div style="display: grid; height:100%; grid-template-columns: 40ch 1fr; overflow: auto">
+        <div style="overflow: auto">
           {messages.map((msg, i) => (
             <Item index={i} selected={selected} setSelected={setSelected}>
               {prepPreview(msg)}
             </Item>
           ))}
         </div>
-        <div style={{ flexShrink: "1" }}>
+        <div>
           <pre>{JSON.stringify(messages[selected], null, 4)}</pre>
         </div>
       </div>

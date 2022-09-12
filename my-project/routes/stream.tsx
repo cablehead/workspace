@@ -6,12 +6,12 @@ console.log("source:", Deno.env.get("API_HOST"));
 
 export default function Home() {
   return (
-    <div>
+    <main>
       <h2>A stream</h2>
       <div>
         <a href="/">home</a>
       </div>
       <ZeStream source={Deno.env.get("API_HOST")} />
-    </div>
+    </main>
   );
 }

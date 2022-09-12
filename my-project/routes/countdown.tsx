@@ -6,11 +6,11 @@ export default function Page() {
   const date = new Date();
   date.setHours(date.getHours() + 1);
   return (
-    <p>
+    <main>
       <div>
         <a href="/">home</a>
       </div>
       The big event is happening <Countdown target={date.toISOString()} />.
-    </p>
+    </main>
   );
 }

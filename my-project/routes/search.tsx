@@ -21,7 +21,7 @@ export const handler: Handlers<Data> = {
 export default function Page({ data }: PageProps<Data>) {
   const { results, query } = data;
   return (
-    <div>
+    <main>
       <a href="/">home</a>
       <form>
         <input type="text" name="q" value={query} />
@@ -30,6 +30,6 @@ export default function Page({ data }: PageProps<Data>) {
       <ul>
         {results.map((name) => <li key={name}>{name}</li>)}
       </ul>
-    </div>
+    </main>
   );
 }

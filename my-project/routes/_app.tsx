@@ -5,7 +5,7 @@ import { AppProps } from "$fresh/src/server/types.ts";
 
 export default function App({ Component }: AppProps) {
   return (
-    <html data-custom="data">
+    <html>
       <Head>
         <title>cross.stream</title>
 
@@ -15,6 +15,7 @@ export default function App({ Component }: AppProps) {
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
         />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+
         <link href="https://unpkg.com/sanitize.css" rel="stylesheet" />
         <link
           href="https://unpkg.com/sanitize.css/forms.css"
@@ -40,9 +41,9 @@ export default function App({ Component }: AppProps) {
           href="https://unpkg.com/sanitize.css/typography.css"
           rel="stylesheet"
         />
-        <link rel="stylesheet" href={asset("style.css")} />
+        <link rel="stylesheet" href={"/" + asset("style.css")} />
       </Head>
-      <body class="bodyClass">
+      <body>
         <Component />
       </body>
     </html>
