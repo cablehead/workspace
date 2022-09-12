@@ -118,7 +118,7 @@ export default function ZeStream(props: PageProps) {
             </Item>
           ))}
         </div>
-        <div>
+        <div style="overflow: auto">
           <pre>{JSON.stringify(messages[selected], null, 4)}</pre>
         </div>
       </div>

@@ -8,8 +8,8 @@ export function Item(props) {
       style={{
         borderBottom: "1px solid #eee",
         overflow: "hidden",
-        lineHeight: "3em",
-        height: "3em",
+        lineHeight: "2.5em",
+        height: "2.5em",
         backgroundColor: (props.selected == props.index) && "#eee" || "#fff",
       }}
       onClick={() => props.setSelected(props.index)}
