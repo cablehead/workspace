@@ -8,6 +8,13 @@ const DISCONNECTED = "🔴 Disconnected";
 const CONNECTING = "🟡 Connecting...";
 const CONNECTED = "🟢 Connected";
 
+
+function prepPreview(msg) {
+	const plain = msg.types["public.utf8-plain-text"];
+	if (plain != null) return atob(plain);
+	return "n/a";
+}
+
 export default function ZeStream(props: PageProps) {
   const [status, setStatus] = useState(DISCONNECTED);
 
@@ -108,7 +115,7 @@ export default function ZeStream(props: PageProps) {
         <div style={{ maxHeight: "100vh", overflow: "auto", flex: "0 0 40ch" }}>
           {messages.map((msg, i) => (
             <Item index={i} selected={selected} setSelected={setSelected}>
-              {atob(msg.types["public.utf8-plain-text"])}
+              {prepPreview(msg)}
             </Item>
           ))}
         </div>
