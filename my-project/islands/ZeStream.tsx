@@ -118,8 +118,9 @@ export default function ZeStream(props: PageProps) {
             </Item>
           ))}
         </div>
-        <div style="height: 100%; overflow: auto;">
+        <div style="height: 100%; overflow: auto; display: grid; grid-template-rows: 1fr 1fr;">
           <pre style="height: 100%;">{JSON.stringify(messages[selected], null, 4)}</pre>
+	  <div style="background-color: yellow">hi</div>
         </div>
       </div>
     </div>
