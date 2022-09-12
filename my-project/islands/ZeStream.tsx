@@ -108,18 +108,18 @@ export default function ZeStream(props: PageProps) {
   }, []);
 
   return (
-    <div style="display: grid; height:100%; overflow: auto">
+    <div style="display: flex; flex-direction: column; height:100%; overflow: auto">
       <p>Status: {status}</p>
-      <div style="display: grid; height:100%; grid-template-columns: 40ch 1fr; overflow: auto">
-        <div style="overflow: auto">
+      <div style="display: grid; height:100%; grid-template-columns: 40ch 1fr; overflow: auto;">
+        <div style="height: 100%; overflow: auto;">
           {messages.map((msg, i) => (
             <Item index={i} selected={selected} setSelected={setSelected}>
               {prepPreview(msg)}
             </Item>
           ))}
         </div>
-        <div style="overflow: auto">
-          <pre>{JSON.stringify(messages[selected], null, 4)}</pre>
+        <div style="height: 100%; overflow: auto;">
+          <pre style="height: 100%;">{JSON.stringify(messages[selected], null, 4)}</pre>
         </div>
       </div>
     </div>
