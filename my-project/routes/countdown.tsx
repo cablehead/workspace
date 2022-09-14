@@ -1,5 +1,3 @@
-/** @jsx h */
-import { h } from "preact";
 import Countdown from "../islands/Countdown.tsx";
 
 export default function Page() {

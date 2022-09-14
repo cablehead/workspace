@@ -2,6 +2,7 @@
 // This file SHOULD be checked into source version control.
 // This file is automatically updated during development when running `dev.ts`.
 
+import config from "./deno.json" assert { type: "json" };
 import * as $0 from "./routes/[name].tsx";
 import * as $1 from "./routes/_app.tsx";
 import * as $2 from "./routes/about.tsx";
@@ -33,6 +34,7 @@ const manifest = {
     "./islands/ZeStream.tsx": $$2,
   },
   baseUrl: import.meta.url,
+  config,
 };
 
 export default manifest;

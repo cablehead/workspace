@@ -1,6 +1,5 @@
-/** @jsx h  */
-import { h } from "preact";
 import { useEffect, useReducer, useState } from "preact/hooks";
+import { useSignal } from "@preact/signals";
 
 import { Item } from "../components/Item.tsx";
 
@@ -22,9 +21,9 @@ export default function ZeStream(props: PageProps) {
     [],
   );
 
-  const [selected, setSelected] = useState(0);
+  const inEdit = useSignal(false);
 
-  const [inEdit, setInEdit] = useState(false);
+  const [selected, setSelected] = useState(0);
 
   const handler = (event) => {
     console.log(event);
@@ -48,11 +47,15 @@ export default function ZeStream(props: PageProps) {
         break;
 
       case event.key == "Enter":
-        // arg, need to subscribe to inEdit here, similar to subscribe to message
-        // length
-        console.log("inEdit", inEdit);
-        if (inEdit) break;
-        setInEdit(true);
+        if (event.metaKey) {
+          if (!inEdit.value) break;
+          inEdit.value = false;
+          event.preventDefault();
+          break;
+        }
+
+        if (inEdit.value) break;
+        inEdit.value = true;
         event.preventDefault();
         break;
     }
@@ -123,7 +126,7 @@ export default function ZeStream(props: PageProps) {
         <div style="height: 100%; overflow: auto; display: grid; grid-template-columns: 1fr;">
           <pre style="height: 100%;">{JSON.stringify(messages[selected], null, 4)}</pre>
 
-          {inEdit && (
+          {inEdit.value && (
             <div>
               <textarea style="height:100%; width:100%; resize: none;">
                 hi

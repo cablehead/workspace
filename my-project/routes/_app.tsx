@@ -1,5 +1,3 @@
-/** @jsx h */
-import { h } from "preact";
 import { asset, Head } from "$fresh/runtime.ts";
 import { AppProps } from "$fresh/src/server/types.ts";
 
