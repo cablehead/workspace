@@ -1,5 +1,6 @@
 use std::io::BufRead;
 use std::io::Read;
+use std::io::Write;
 
 use clap::{AppSettings, Parser, Subcommand};
 
@@ -24,12 +25,19 @@ enum Commands {
     Cat {
         #[clap(short, long, action)]
         follow: bool,
-
         #[clap(long, action)]
         sse: bool,
-
         #[clap(short, long, value_parser)]
         last_id: Option<i64>,
+    },
+
+    Pipe {
+        #[clap(value_parser)]
+        id: i64,
+        #[clap(value_parser)]
+        command: String,
+        #[clap(value_parser)]
+        args: Vec<String>,
     },
 }
 
@@ -104,6 +112,31 @@ fn main() {
                 }
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
+        }
+
+        Commands::Pipe { id, command, args } => {
+            let mut q = conn
+                .prepare("SELECT data FROM stream WHERE id = ?")
+                .unwrap()
+                .bind(1, *id)
+                .unwrap();
+            if let sqlite::State::Done = q.next().unwrap() {
+                println!("no match");
+                return;
+            }
+            let data = q.read::<String>(0).unwrap();
+
+            let mut p = std::process::Command::new(command)
+                .args(args)
+                .stdin(std::process::Stdio::piped())
+                .spawn()
+                .unwrap();
+            {
+                let mut stdin = p.stdin.take().unwrap();
+                stdin.write_all(data.as_bytes()).unwrap();
+            }
+            let res = p.wait_with_output().unwrap();
+            std::process::exit(res.status.code().unwrap());
         }
     }
 }
