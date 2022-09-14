@@ -24,9 +24,10 @@ export default function ZeStream(props: PageProps) {
 
   const [selected, setSelected] = useState(0);
 
-  const [inEdit, setInEdit] = useState(true);
+  const [inEdit, setInEdit] = useState(false);
 
   const handler = (event) => {
+    console.log(event);
     switch (true) {
       case event.key == "ArrowUp":
       case event.ctrlKey && event.key == "p":
@@ -47,12 +48,13 @@ export default function ZeStream(props: PageProps) {
         break;
 
       case event.key == "Enter":
-        setEdit(true);
+        // arg, need to subscribe to inEdit here, similar to subscribe to message
+        // length
+        console.log("inEdit", inEdit);
+        if (inEdit) break;
+        setInEdit(true);
         event.preventDefault();
         break;
-
-      default:
-        console.log(event);
     }
   };
 
@@ -118,9 +120,16 @@ export default function ZeStream(props: PageProps) {
             </Item>
           ))}
         </div>
-        <div style="height: 100%; overflow: auto; display: grid; grid-template-rows: 1fr 1fr;">
+        <div style="height: 100%; overflow: auto; display: grid; grid-template-columns: 1fr;">
           <pre style="height: 100%;">{JSON.stringify(messages[selected], null, 4)}</pre>
-	  <div><textarea style="height:100%; width:100%; resize: none;">hi</textarea></div>
+
+          {inEdit && (
+            <div>
+              <textarea style="height:100%; width:100%; resize: none;">
+                hi
+              </textarea>
+            </div>
+          )}
         </div>
       </div>
     </div>
