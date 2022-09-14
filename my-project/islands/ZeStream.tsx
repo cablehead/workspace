@@ -22,6 +22,7 @@ export default function ZeStream(props: PageProps) {
   );
 
   const inEdit = useSignal(false);
+  const numMessages = useSignal(0);
 
   const [selected, setSelected] = useState(0);
 
@@ -40,7 +41,7 @@ export default function ZeStream(props: PageProps) {
       case event.ctrlKey && event.key == "n":
       case event.key == "ArrowDown":
         setSelected((x) => {
-          if (x < messages.length - 1) return x + 1;
+          if (x < numMessages.value - 1) return x + 1;
           return x;
         });
         event.preventDefault();
@@ -62,11 +63,15 @@ export default function ZeStream(props: PageProps) {
   };
 
   useEffect(() => {
+    numMessages.value = messages.length;
+  }, [messages]);
+
+  useEffect(() => {
     document.addEventListener("keydown", handler);
     return () => {
       document.removeEventListener("keydown", handler);
     };
-  }, [messages]);
+  }, []);
 
   useEffect(() => {
     const item = document.getElementsByClassName("message-item")[selected];
