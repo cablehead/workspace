@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useState } from "preact/hooks";
 import { useSignal } from "@preact/signals";
 
+import { Editor } from "../components/Editor.tsx";
 import { Item } from "../components/Item.tsx";
 
 const DISCONNECTED = "🔴 Disconnected";
@@ -133,9 +134,9 @@ export default function ZeStream(props: PageProps) {
 
           {inEdit.value && (
             <div>
-              <textarea style="height:100%; width:100%; resize: none;">
+              <Editor>
                 hi
-              </textarea>
+              </Editor>
             </div>
           )}
         </div>
