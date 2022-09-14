@@ -29,7 +29,7 @@ export function Editor(props) {
   return (
     <textarea
       ref={textarea}
-      style="height:100%; width:100%; resize: none;"
+      style="height:100%; overflow: auto; width: 100%; resize: none;"
       {...props}
     />
   );

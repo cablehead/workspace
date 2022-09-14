@@ -129,9 +129,15 @@ export default function ZeStream(props: PageProps) {
             </Item>
           ))}
         </div>
-        <div style="height: 100%; overflow: auto; display: grid; grid-template-columns: 1fr;">
-          <pre style="height: 100%;">{JSON.stringify(messages[selected], null, 4)}</pre>
-
+        <div style="
+		overflow: auto;
+		display: grid;
+		grid-auto-rows: 1fr;
+		height:100%;
+	">
+          <div style="white-space: pre; height: 100%; overflow: auto;">
+            {JSON.stringify(messages[selected], null, 4)}
+          </div>
           {inEdit.value && (
             <div>
               <Editor>
