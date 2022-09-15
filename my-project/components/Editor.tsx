@@ -21,7 +21,9 @@ export function Editor(props) {
           method: "POST",
           body: textarea.current.value,
         }).then((resp) =>
-          resp.text().then((body) => console.log("body", body))
+          resp.text().then((body) => {
+            props.preview.value = body;
+          })
         );
         event.preventDefault();
         break;

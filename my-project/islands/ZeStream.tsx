@@ -24,6 +24,7 @@ export default function ZeStream(props: PageProps) {
 
   const inEdit = useSignal(false);
   const numMessages = useSignal(0);
+  const preview = useSignal("...");
 
   const [selected, setSelected] = useState(0);
 
@@ -139,10 +140,15 @@ export default function ZeStream(props: PageProps) {
             {JSON.stringify(messages[selected], null, 4)}
           </div>
           {inEdit.value && (
-            <Editor source={props.source} id={numMessages.value - selected}>
+            <Editor source={props.source} id={numMessages.value - selected} preview={ preview }>
               hi
             </Editor>
           )}
+	  {inEdit.value && (
+          <div style="white-space: pre; height: 100%; overflow: auto;">
+            { preview }
+          </div>
+	  )}
         </div>
       </div>
     </div>
