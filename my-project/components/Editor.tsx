@@ -13,7 +13,16 @@ export function Editor(props) {
     console.log("Editor", event);
     switch (true) {
       case event.ctrlKey && event.key == "r":
-        console.log("run", textarea.current.value);
+        console.log("run", textarea.current.value, props.source);
+
+        const uri = `${props.source}pipe/${props.id}`;
+        console.log(uri);
+        fetch(uri, {
+          method: "POST",
+          body: textarea.current.value,
+        }).then((resp) =>
+          resp.text().then((body) => console.log("body", body))
+        );
         event.preventDefault();
         break;
     }

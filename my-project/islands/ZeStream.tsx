@@ -139,11 +139,9 @@ export default function ZeStream(props: PageProps) {
             {JSON.stringify(messages[selected], null, 4)}
           </div>
           {inEdit.value && (
-            <div>
-              <Editor>
-                hi
-              </Editor>
-            </div>
+            <Editor source={props.source} id={numMessages.value - selected}>
+              hi
+            </Editor>
           )}
         </div>
       </div>
