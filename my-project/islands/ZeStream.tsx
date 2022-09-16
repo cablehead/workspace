@@ -72,13 +72,14 @@ export default function ZeStream(props: PageProps) {
 
       const offsetTop = item.offsetTop - p.offsetTop;
       const offsetBottom = offsetTop + item.offsetHeight;
+      const scrollBottom = p.scrollTop + p.clientHeight;
 
       if (offsetTop < p.scrollTop) {
         p.scrollTop = offsetTop;
         return;
       }
 
-      if (offsetBottom > p.clientHeight) {
+      if (offsetBottom > scrollBottom) {
         p.scrollTop = offsetBottom - p.clientHeight;
         return;
       }
