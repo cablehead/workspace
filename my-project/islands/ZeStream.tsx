@@ -25,6 +25,8 @@ export default function ZeStream(props: PageProps) {
   const selected = useSignal(0);
   const selectedId = useComputed(() => messages.value.length - selected.value);
 
+  const command = useSignal("jq .");
+
   const handler = (event) => {
     console.log(event);
     switch (true) {
@@ -84,6 +86,23 @@ export default function ZeStream(props: PageProps) {
   }, []);
 
   useEffect(() => {
+    return effect(() => {
+      const id = selectedId.value;
+      if (!inEdit.value) return;
+      const uri = `${props.source}pipe/${id}`;
+      console.log(uri);
+      fetch(uri, {
+        method: "POST",
+        body: command.value,
+      }).then((resp) =>
+        resp.text().then((body) => {
+          preview.value = body;
+        })
+      );
+    });
+  }, []);
+
+  useEffect(() => {
     const events = new EventSource(props.source);
     status.value = CONNECTING;
 
@@ -129,12 +148,8 @@ export default function ZeStream(props: PageProps) {
           </div>
           {inEdit.value && (
             <Editor
-              source={props.source}
-              id={selectedId}
-              preview={preview}
-            >
-              jq .
-            </Editor>
+              command={command}
+            />
           )}
           {inEdit.value && (
             <div style="white-space: pre; height: 100%; overflow: auto;">

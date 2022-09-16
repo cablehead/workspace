@@ -12,18 +12,7 @@ export function Editor(props) {
     console.log("Editor", event);
     switch (true) {
       case event.ctrlKey && event.key == "r":
-        console.log("run", textarea.current.value, props.source);
-
-        const uri = `${props.source}pipe/${props.id.value}`;
-        console.log(uri);
-        fetch(uri, {
-          method: "POST",
-          body: textarea.current.value,
-        }).then((resp) =>
-          resp.text().then((body) => {
-            props.preview.value = body;
-          })
-        );
+        props.command.value = textarea.current.value;
         event.preventDefault();
         break;
     }
@@ -40,7 +29,8 @@ export function Editor(props) {
     <textarea
       ref={textarea}
       style="height:100%; overflow: auto; width: 100%; resize: none;"
-      {...props}
-    />
+    >
+      {props.command}
+    </textarea>
   );
 }
