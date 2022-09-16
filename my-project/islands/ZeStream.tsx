@@ -1,5 +1,5 @@
-import { useEffect, useReducer, useState } from "preact/hooks";
-import { useSignal } from "@preact/signals";
+import { useEffect } from "preact/hooks";
+import { useComputed, useSignal } from "@preact/signals";
 
 import { Editor } from "../components/Editor.tsx";
 import { Item } from "../components/Item.tsx";
@@ -15,37 +15,24 @@ function prepPreview(msg) {
 }
 
 export default function ZeStream(props: PageProps) {
-  const [status, setStatus] = useState(DISCONNECTED);
-
-  const [messages, addMessage] = useReducer<string[], string>(
-    (msgs, msg) => [msg, ...msgs],
-    [],
-  );
-
+  const status = useSignal(DISCONNECTED);
+  const messages = useSignal([]);
   const inEdit = useSignal(false);
-  const numMessages = useSignal(0);
   const preview = useSignal("...");
-
-  const [selected, setSelected] = useState(0);
+  const selected = useSignal(0);
 
   const handler = (event) => {
     console.log(event);
     switch (true) {
       case event.key == "ArrowUp":
       case event.ctrlKey && event.key == "p":
-        setSelected((x) => {
-          if (x > 0) x -= 1;
-          return x;
-        });
+        if (selected.value > 0) selected.value--;
         event.preventDefault();
         break;
 
       case event.ctrlKey && event.key == "n":
       case event.key == "ArrowDown":
-        setSelected((x) => {
-          if (x < numMessages.value - 1) return x + 1;
-          return x;
-        });
+        if (selected.value < messages.value.length - 1) selected.value++;
         event.preventDefault();
         break;
 
@@ -65,18 +52,15 @@ export default function ZeStream(props: PageProps) {
   };
 
   useEffect(() => {
-    numMessages.value = messages.length;
-  }, [messages]);
-
-  useEffect(() => {
     document.addEventListener("keydown", handler);
     return () => {
       document.removeEventListener("keydown", handler);
     };
   }, []);
 
+  /*
   useEffect(() => {
-    const item = document.getElementsByClassName("message-item")[selected];
+    const item = document.getElementsByClassName("message-item")[selected.value];
     if (!item) return;
 
     const p = item.parentElement;
@@ -94,38 +78,39 @@ export default function ZeStream(props: PageProps) {
         break;
     }
   }, [selected]);
+  */
 
   useEffect(() => {
     const events = new EventSource(props.source);
-    setStatus(CONNECTING);
+    status.value = CONNECTING;
 
-    events.addEventListener("open", () => setStatus(CONNECTED));
+    events.addEventListener("open", () => status.value = CONNECTED);
     events.addEventListener("error", () => {
       switch (events.readyState) {
         case EventSource.OPEN:
-          setStatus(CONNECTED);
+          status.value = CONNECTED;
           break;
         case EventSource.CONNECTING:
-          setStatus(CONNECTING);
+          status.value = CONNECTING;
           break;
         case EventSource.CLOSED:
-          setStatus(DISCONNECTED);
+          status.value = DISCONNECTED;
           break;
       }
     });
     events.addEventListener("message", (e) => {
       let data = JSON.parse(e.data);
-      addMessage(data);
+      messages.value = [data, ...messages.value];
     });
   }, []);
 
   return (
     <div style="display: flex; flex-direction: column; height:100%; overflow: auto">
-      <p>Status: {status}</p>
+      <p>Status: {status} Selected: {selected.value}</p>
       <div style="display: grid; height:100%; grid-template-columns: 40ch 1fr; overflow: auto; gap: 1em;">
         <div style="height: 100%; overflow: auto;">
-          {messages.map((msg, i) => (
-            <Item index={i} selected={selected} setSelected={setSelected}>
+          {messages.value.map((msg, i) => (
+            <Item index={i} selected={selected}>
               {prepPreview(msg)}
             </Item>
           ))}
@@ -137,18 +122,22 @@ export default function ZeStream(props: PageProps) {
 		height:100%;
 	">
           <div style="white-space: pre; height: 100%; overflow: auto;">
-            {JSON.stringify(messages[selected], null, 4)}
+            {JSON.stringify(messages.value[selected.value], null, 4)}
           </div>
           {inEdit.value && (
-            <Editor source={props.source} id={numMessages.value - selected} preview={ preview }>
+            <Editor
+              source={props.source}
+              id={messages.value.length - selected.value}
+              preview={preview}
+            >
               hi
             </Editor>
           )}
-	  {inEdit.value && (
-          <div style="white-space: pre; height: 100%; overflow: auto;">
-            { preview }
-          </div>
-	  )}
+          {inEdit.value && (
+            <div style="white-space: pre; height: 100%; overflow: auto;">
+              {preview}
+            </div>
+          )}
         </div>
       </div>
     </div>

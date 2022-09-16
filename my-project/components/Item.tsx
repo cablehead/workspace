@@ -1,4 +1,7 @@
+import { useComputed } from "@preact/signals";
+
 export function Item(props) {
+  const isSelected = useComputed(() => props.selected.value == props.index);
   return (
     <div
       class="message-item"
@@ -7,9 +10,11 @@ export function Item(props) {
         overflow: "hidden",
         lineHeight: "2.5em",
         height: "2.5em",
-        backgroundColor: (props.selected == props.index) && "#eee" || "#fff",
+        backgroundColor: isSelected.value && "#eee" || "#fff",
       }}
-      onClick={() => props.setSelected(props.index)}
+      onClick={() => {
+        props.selected.value = props.index;
+      }}
       {...props}
     />
   );
