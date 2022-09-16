@@ -19,7 +19,9 @@ export default function ZeStream(props: PageProps) {
   const messages = useSignal([]);
   const inEdit = useSignal(false);
   const preview = useSignal("...");
+
   const selected = useSignal(0);
+  const selectedId = useComputed(() => messages.value.length - selected.value);
 
   const handler = (event) => {
     console.log(event);
@@ -127,10 +129,10 @@ export default function ZeStream(props: PageProps) {
           {inEdit.value && (
             <Editor
               source={props.source}
-              id={messages.value.length - selected.value}
+              id={selectedId}
               preview={preview}
             >
-              hi
+              jq .
             </Editor>
           )}
           {inEdit.value && (

@@ -15,7 +15,7 @@ export function Editor(props) {
       case event.ctrlKey && event.key == "r":
         console.log("run", textarea.current.value, props.source);
 
-        const uri = `${props.source}pipe/${props.id}`;
+        const uri = `${props.source}pipe/${props.id.value}`;
         console.log(uri);
         fetch(uri, {
           method: "POST",
