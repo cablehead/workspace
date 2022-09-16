@@ -1,5 +1,5 @@
-import { useEffect } from "preact/hooks";
-import { useComputed, useSignal } from "@preact/signals";
+import { useEffect, useRef } from "preact/hooks";
+import { effect, useComputed, useSignal } from "@preact/signals";
 
 import { Editor } from "../components/Editor.tsx";
 import { Item } from "../components/Item.tsx";
@@ -15,6 +15,8 @@ function prepPreview(msg) {
 }
 
 export default function ZeStream(props: PageProps) {
+  const menu = useRef();
+
   const status = useSignal(DISCONNECTED);
   const messages = useSignal([]);
   const inEdit = useSignal(false);
@@ -60,27 +62,26 @@ export default function ZeStream(props: PageProps) {
     };
   }, []);
 
-  /*
   useEffect(() => {
-    const item = document.getElementsByClassName("message-item")[selected.value];
-    if (!item) return;
+    return effect(() => {
+      const p = menu.current;
+      const item = p.children.item(selected.value);
+      if (!item) return;
 
-    const p = item.parentElement;
-    const offsetTop = item.offsetTop - p.offsetTop;
-    const offsetBottom = offsetTop + item.offsetHeight;
-    const clientHeight = p.clientHeight - p.offsetTop;
+      const offsetTop = item.offsetTop - p.offsetTop;
+      const offsetBottom = offsetTop + item.offsetHeight;
 
-    switch (true) {
-      case (offsetTop < p.scrollTop):
+      if (offsetTop < p.scrollTop) {
         p.scrollTop = offsetTop;
-        break;
+        return;
+      }
 
-      case (offsetBottom - p.scrollTop > clientHeight):
-        p.scrollTop = offsetBottom - clientHeight;
-        break;
-    }
-  }, [selected]);
-  */
+      if (offsetBottom > p.clientHeight) {
+        p.scrollTop = offsetBottom - p.clientHeight;
+        return;
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const events = new EventSource(props.source);
@@ -110,7 +111,7 @@ export default function ZeStream(props: PageProps) {
     <div style="display: flex; flex-direction: column; height:100%; overflow: auto">
       <p>Status: {status} Selected: {selected.value}</p>
       <div style="display: grid; height:100%; grid-template-columns: 40ch 1fr; overflow: auto; gap: 1em;">
-        <div style="height: 100%; overflow: auto;">
+        <div ref={menu} style="height: 100%; overflow: auto;">
           {messages.value.map((msg, i) => (
             <Item index={i} selected={selected}>
               {prepPreview(msg)}
