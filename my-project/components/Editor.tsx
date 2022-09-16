@@ -1,4 +1,3 @@
-import { createRef } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 
 export function Editor(props) {
