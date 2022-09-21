@@ -2,6 +2,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { effect, useComputed, useSignal } from "@preact/signals";
 
 import { Editor } from "../components/Editor.tsx";
+import { NewItem } from "../components/NewItem.tsx";
 import { Item } from "../components/Item.tsx";
 
 const DISCONNECTED = "🔴 Disconnected";
@@ -9,6 +10,7 @@ const CONNECTING = "🟡 Connecting...";
 const CONNECTED = "🟢 Connected";
 
 function prepPreview(msg) {
+  return msg;
   const plain = msg.types["public.utf8-plain-text"];
   if (plain != null) return atob(plain);
   return "n/a";
@@ -20,6 +22,7 @@ export default function ZeStream(props: PageProps) {
   const status = useSignal(DISCONNECTED);
   const messages = useSignal([]);
   const inEdit = useSignal(false);
+  const inNew = useSignal(false);
   const preview = useSignal("...");
 
   const selected = useSignal(0);
@@ -30,31 +33,41 @@ export default function ZeStream(props: PageProps) {
   const handler = (event) => {
     console.log(event);
     switch (true) {
-      case event.key == "ArrowUp":
+      case event.ctrlKey && event.key == "ArrowUp":
       case event.ctrlKey && event.key == "p":
         if (selected.value > 0) selected.value--;
         event.preventDefault();
         break;
 
+      case event.ctrlKey && event.key == "ArrowDown":
       case event.ctrlKey && event.key == "n":
-      case event.key == "ArrowDown":
         if (selected.value < messages.value.length - 1) selected.value++;
         event.preventDefault();
         break;
 
-      case event.key == "Enter":
-        if (event.metaKey) {
-          if (!inEdit.value) break;
-          inEdit.value = false;
+      case event.ctrlKey && event.key == "Enter":
+        if (!inNew.value) {
+          inNew.value = !inNew.value;
           event.preventDefault();
-          break;
         }
+        break;
 
-        if (inEdit.value) break;
-        inEdit.value = true;
+      case event.metaKey && event.key == "Enter":
+        inEdit.value = !inEdit.value;
         event.preventDefault();
         break;
     }
+  };
+
+  const getNewItem = (value) => {
+    console.log(value);
+    const uri = `${props.source}`;
+    console.log(uri);
+    fetch(uri, {
+      method: "PUT",
+      body: value,
+    });
+    inNew.value = false;
   };
 
   useEffect(() => {
@@ -122,8 +135,8 @@ export default function ZeStream(props: PageProps) {
       }
     });
     events.addEventListener("message", (e) => {
-      let data = JSON.parse(e.data);
-      messages.value = [data, ...messages.value];
+      // let data = JSON.parse(e.data);
+      messages.value = [e.data, ...messages.value];
     });
   }, []);
 
@@ -131,6 +144,8 @@ export default function ZeStream(props: PageProps) {
     <div style="display: flex; flex-direction: column; height:100%; overflow: auto">
       <p>Status: {status} Selected: {selected.value}</p>
       <div style="display: grid; height:100%; grid-template-columns: 40ch 1fr; overflow: auto; gap: 1em;">
+        {inNew.value && <NewItem onDone={getNewItem} />}
+
         <div ref={menu} style="height: 100%; overflow: auto;">
           {messages.value.map((msg, i) => (
             <Item index={i} selected={selected}>
@@ -145,7 +160,13 @@ export default function ZeStream(props: PageProps) {
 		height:100%;
 	">
           <div style="white-space: pre; height: 100%; overflow: auto;">
-            {JSON.stringify(messages.value[selected.value], null, 4)}
+            {
+              /*
+	    JSON.stringify(messages.value[selected.value], null, 4)
+	    */
+
+              messages.value[selected.value]
+            }
           </div>
           {inEdit.value && (
             <Editor
