@@ -21,14 +21,14 @@ export default function ZeStream(props: PageProps) {
 
   const status = useSignal(DISCONNECTED);
   const messages = useSignal([]);
-  const inEdit = useSignal(false);
+  const inEdit = useSignal(true);
   const inNew = useSignal(false);
   const preview = useSignal("...");
 
   const selected = useSignal(0);
   const selectedId = useComputed(() => messages.value.length - selected.value);
 
-  const command = useSignal("jq .");
+  const command = useSignal("cat");
 
   const handler = (event) => {
     console.log(event);
@@ -153,31 +153,41 @@ export default function ZeStream(props: PageProps) {
             </Item>
           ))}
         </div>
+
         <div style="
 		overflow: auto;
 		display: grid;
-		grid-auto-rows: 1fr;
+		grid-template-columns: 1fr 1fr;
 		height:100%;
 	">
-          <div style="white-space: pre; height: 100%; overflow: auto;">
-            {
-              /*
+          <div style="
+		overflow: auto;
+		display: grid;
+		grid-template-rows: 1fr;
+		height:100%;
+	">
+            <div style="white-space: pre; height: 100%; overflow: auto;">
+              {
+                /*
 	    JSON.stringify(messages.value[selected.value], null, 4)
 	    */
 
-              messages.value[selected.value]
-            }
+                messages.value[selected.value]
+              }
+            </div>
+            {inEdit.value && (
+              <Editor
+                command={command}
+              />
+            )}
           </div>
-          {inEdit.value && (
-            <Editor
-              command={command}
-            />
-          )}
+
           {inEdit.value && (
             <div style="white-space: pre; height: 100%; overflow: auto;">
               {preview}
             </div>
           )}
+
         </div>
       </div>
     </div>
