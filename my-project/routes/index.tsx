@@ -14,7 +14,7 @@ export default function Home() {
         Wha? I need to refresh? Oh, phew
       </p>
       <div style="display: flex; gap: 10px;">
-        <a href="/countdown">countdown</a>
+        <a href="/design">design</a>
         <a href="/stream">stream</a>
         <a href="/github/cablehead">cablehead</a>
         <a href="/greet/me">greet me</a>
