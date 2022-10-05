@@ -21,7 +21,7 @@ export default function ZeStream(props: PageProps) {
 
   const status = useSignal(DISCONNECTED);
   const messages = useSignal([]);
-  const inEdit = useSignal(true);
+  const inEdit = useSignal(false);
   const inNew = useSignal(false);
   const preview = useSignal("...");
 
@@ -157,7 +157,7 @@ export default function ZeStream(props: PageProps) {
         <div style="
 		overflow: auto;
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: 1fr 2fr;
 		height:100%;
 	">
           <div style="
