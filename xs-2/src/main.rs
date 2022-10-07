@@ -1,4 +1,5 @@
 use std::io::BufRead;
+use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 
@@ -156,10 +157,48 @@ fn main() {
     }
 }
 
-use std::io::BufReader;
+#[derive(Debug, PartialEq)]
+struct Event {
+    data: String,
+    event: Option<String>,
+    id: Option<i64>,
+}
 
-fn parse_sse<R: Read>(buf: BufReader<R>) {
-    println!("{:?}", buf.lines().next());
+fn parse_sse<R: Read>(buf: &mut BufReader<R>) -> Option<Event> {
+    let mut line = String::new();
+
+    let mut data = Vec::<String>::new();
+    let mut id: Option<i64> = None;
+
+    loop {
+        line.clear();
+        let n = buf.read_line(&mut line).unwrap();
+        if n == 0 {
+            // stream interrupted
+            return None;
+        }
+
+        if line == "\n" {
+            // end of event, emit
+            break;
+        }
+
+        let (field, rest) = line.split_at(line.find(":").unwrap() + 1);
+        let rest = rest.trim();
+        match field {
+            // comment
+            ":" => (),
+            "id:" => id = Some(rest.parse::<i64>().unwrap()),
+            "data:" => data.push(rest.to_string()),
+            _ => todo!(),
+        };
+    }
+
+    return Some(Event {
+        data: data.join(" "),
+        event: None,
+        id: id,
+    });
 }
 
 #[cfg(test)]
@@ -170,17 +209,38 @@ mod tests {
 
     #[test]
     fn test_parse_sse() {
-        parse_sse(BufReader::new(
+        let mut buf = BufReader::new(
             indoc! {"
         : welcome
         id: 1
         data: foo
+        data: bar
 
         id: 2
         data: hai
 
         "}
             .as_bytes(),
-        ));
+        );
+
+        let event = parse_sse(&mut buf).unwrap();
+        assert_eq!(
+            event,
+            Event {
+                data: "foo bar".into(),
+                event: None,
+                id: Some(1),
+            }
+        );
+
+        let event = parse_sse(&mut buf).unwrap();
+        assert_eq!(
+            event,
+            Event {
+                data: "hai".into(),
+                event: None,
+                id: Some(2),
+            }
+        );
     }
 }
