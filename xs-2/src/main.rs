@@ -20,6 +20,9 @@ enum Commands {
     Put {
         #[clap(short, long, action, help = "Stream stdin, putting an item per line")]
         follow: bool,
+        // todo: xor follow and sse
+        #[clap(short, long, value_parser, value_name = "SOURCE-NAME")]
+        sse: Option<String>,
     },
 
     Cat {
@@ -41,10 +44,15 @@ enum Commands {
     },
 }
 
-fn put_one(conn: &sqlite::Connection, data: String) {
+fn put_one(
+    conn: &sqlite::Connection,
+    data: String,
+    source: Option<String>,
+    source_id: Option<i64>,
+) {
     let data = data.trim();
     let mut q = conn
-        .prepare("INSERT INTO stream (data) VALUES (?)")
+        .prepare("INSERT INTO stream (data, source, source_id) VALUES (?, ?, ?)")
         .unwrap()
         .bind(1, data.as_bytes())
         .unwrap();
@@ -58,22 +66,29 @@ fn main() {
         "
         CREATE TABLE IF NOT EXISTS stream (
         id INTEGER PRIMARY KEY,
-        data INT NOT NULL
+        data INT NOT NULL,
+        source TEXT,
+        source_id INT
     )",
     )
     .unwrap();
     match &args.command {
-        Commands::Put { follow } => {
-            if !follow {
-                let mut data = String::new();
-                std::io::stdin().read_to_string(&mut data).unwrap();
-                put_one(&conn, data);
+        Commands::Put { follow, sse } => {
+            if *follow {
+                for line in std::io::stdin().lock().lines() {
+                    put_one(&conn, line.unwrap(), None, None);
+                }
                 return;
             }
 
-            for line in std::io::stdin().lock().lines() {
-                put_one(&conn, line.unwrap());
+            if let Some(sse) = sse {
+                println!("{:?}", sse);
+                return;
             }
+
+            let mut data = String::new();
+            std::io::stdin().read_to_string(&mut data).unwrap();
+            put_one(&conn, data, None, None);
         }
 
         Commands::Cat {
@@ -138,5 +153,25 @@ fn main() {
             let res = p.wait_with_output().unwrap();
             std::process::exit(res.status.code().unwrap());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use indoc::indoc;
+    // use pretty_assertions::assert_eq;
+
+    #[test]
+    fn parse_sse() {
+        let stream = parse_sse(indoc! {"
+        : welcome
+        id: 1
+        data: foo
+
+        id: 2
+        data: hai
+
+        "});
     }
 }
