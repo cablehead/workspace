@@ -56,7 +56,12 @@ fn put_one(
         .prepare("INSERT INTO stream (data, source, source_id) VALUES (?, ?, ?)")
         .unwrap()
         .bind(1, data.as_bytes())
+        .unwrap()
+        .bind(3, source_id)
         .unwrap();
+    if let Some(source) = source {
+        q = q.bind(2, Some(source.as_bytes())).unwrap();
+    }
     q.next().unwrap();
 }
 
@@ -83,7 +88,10 @@ fn main() {
             }
 
             if let Some(sse) = sse {
-                println!("{:?}", sse);
+                let mut stdin = BufReader::new(std::io::stdin());
+                while let Some(event) = parse_sse(&mut stdin) {
+                    put_one(&conn, event.data, Some(sse.to_string()), event.id);
+                }
                 return;
             }
 
