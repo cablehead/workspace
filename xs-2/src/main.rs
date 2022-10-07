@@ -156,6 +156,12 @@ fn main() {
     }
 }
 
+use std::io::BufReader;
+
+fn parse_sse<R: Read>(buf: BufReader<R>) {
+    println!("{:?}", buf.lines().next());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,8 +169,9 @@ mod tests {
     // use pretty_assertions::assert_eq;
 
     #[test]
-    fn parse_sse() {
-        let stream = parse_sse(indoc! {"
+    fn test_parse_sse() {
+        parse_sse(BufReader::new(
+            indoc! {"
         : welcome
         id: 1
         data: foo
@@ -172,6 +179,8 @@ mod tests {
         id: 2
         data: hai
 
-        "});
+        "}
+            .as_bytes(),
+        ));
     }
 }
