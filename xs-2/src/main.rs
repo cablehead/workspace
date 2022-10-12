@@ -102,7 +102,7 @@ fn main() {
                         .bind(1, sse.as_bytes())
                         .unwrap();
                     if let sqlite::State::Done = q.next().unwrap() {
-                        println!("no match");
+                        println!("0");
                         return;
                     }
                     let id = q.read::<i64>(0).unwrap();
