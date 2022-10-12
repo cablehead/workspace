@@ -24,6 +24,9 @@ enum Commands {
         // todo: xor follow and sse
         #[clap(short, long, value_parser, value_name = "SOURCE-NAME")]
         sse: Option<String>,
+        // todo: only available with sse
+        #[clap(long)]
+        last_id: bool,
     },
 
     Cat {
@@ -79,7 +82,11 @@ fn main() {
     )
     .unwrap();
     match &args.command {
-        Commands::Put { follow, sse } => {
+        Commands::Put {
+            follow,
+            sse,
+            last_id,
+        } => {
             if *follow {
                 for line in std::io::stdin().lock().lines() {
                     put_one(&conn, line.unwrap(), None, None);
@@ -88,6 +95,21 @@ fn main() {
             }
 
             if let Some(sse) = sse {
+                if *last_id {
+                    let mut q = conn
+                        .prepare("SELECT source_id FROM stream WHERE source = ? ORDER BY id DESC LIMIT 1")
+                        .unwrap()
+                        .bind(1, sse.as_bytes())
+                        .unwrap();
+                    if let sqlite::State::Done = q.next().unwrap() {
+                        println!("no match");
+                        return;
+                    }
+                    let id = q.read::<i64>(0).unwrap();
+                    println!("{}", id);
+                    return;
+                }
+
                 let mut stdin = BufReader::new(std::io::stdin());
                 while let Some(event) = parse_sse(&mut stdin) {
                     put_one(&conn, event.data, Some(sse.to_string()), event.id);
