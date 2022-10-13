@@ -60,14 +60,15 @@ export default function ZeStream(props: PageProps) {
   };
 
   const getNewItem = (value) => {
-    console.log(value);
+    console.log("getNewItem", value);
+    inNew.value = false;
+    if (value == "") return;
     const uri = `${props.source}`;
     console.log(uri);
     fetch(uri, {
       method: "PUT",
       body: value,
     });
-    inNew.value = false;
   };
 
   useEffect(() => {
