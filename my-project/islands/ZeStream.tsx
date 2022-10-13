@@ -154,12 +154,12 @@ export default function ZeStream(props: PageProps) {
           ))}
         </div>
 
-        <div style="
-		overflow: auto;
-		display: grid;
-		grid-template-columns: 1fr 2fr;
-		height:100%;
-	">
+        <div style={{
+		overflow: "auto",
+		display: "grid",
+		gridTemplateColumns: "1fr" + (inEdit.value ? " 2fr" : ""),
+		height: "100%",
+	}}>
           <div style="
 		overflow: auto;
 		display: grid;
