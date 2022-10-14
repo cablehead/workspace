@@ -158,6 +158,7 @@ export default function ZeStream(props: PageProps) {
         <div style={{
 		overflow: "auto",
 		display: "grid",
+		gap: "1em",
 		gridTemplateColumns: "1fr" + (inEdit.value ? " 2fr" : ""),
 		height: "100%",
 	}}>
@@ -166,6 +167,7 @@ export default function ZeStream(props: PageProps) {
 		display: grid;
 		grid-template-rows: 1fr;
 		height:100%;
+		gap: 1em;
 	">
             <div style="white-space: pre; height: 100%; overflow: auto;">
               {
@@ -184,7 +186,10 @@ export default function ZeStream(props: PageProps) {
           </div>
 
           {inEdit.value && (
-            <div style="white-space: pre; height: 100%; overflow: auto;">
+            <div style="
+	    white-space: pre; height: 100%; overflow: auto;
+	    /* background-color: #efd5e5; */
+	    ">
               {preview}
             </div>
           )}
