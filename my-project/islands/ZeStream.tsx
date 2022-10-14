@@ -26,12 +26,10 @@ export default function ZeStream(props: PageProps) {
   const preview = useSignal("...");
 
   const selected = useSignal(0);
-  const selectedId = useComputed(() => messages.value.length - selected.value);
 
   const command = useSignal("cat");
 
   const handler = (event) => {
-    console.log(event);
     switch (true) {
       case event.ctrlKey && event.key == "ArrowUp":
       case event.ctrlKey && event.key == "p":
@@ -52,6 +50,11 @@ export default function ZeStream(props: PageProps) {
         }
         break;
 
+      case event.ctrlKey && event.key == "Backspace":
+        messages.value = messages.value.filter((_, i) => i !== selected.value);
+        event.preventDefault();
+        break;
+
       case event.metaKey && event.key == "Enter":
         inEdit.value = !inEdit.value;
         event.preventDefault();
@@ -60,11 +63,9 @@ export default function ZeStream(props: PageProps) {
   };
 
   const getNewItem = (value) => {
-    console.log("getNewItem", value);
     inNew.value = false;
     if (value == "") return;
     const uri = `${props.source}`;
-    console.log(uri);
     fetch(uri, {
       method: "PUT",
       body: value,
@@ -102,10 +103,11 @@ export default function ZeStream(props: PageProps) {
 
   useEffect(() => {
     return effect(() => {
-      const id = selectedId.value;
+      const id = messages.value.length > 0
+        ? messages.value[selected.value].id
+        : null;
       if (!inEdit.value) return;
       const uri = `${props.source}pipe/${id}`;
-      console.log(uri);
       fetch(uri, {
         method: "POST",
         body: command.value,
@@ -136,8 +138,7 @@ export default function ZeStream(props: PageProps) {
       }
     });
     events.addEventListener("message", (e) => {
-      // let data = JSON.parse(e.data);
-      messages.value = [e.data, ...messages.value];
+      messages.value = [{ id: e.lastEventId, content: e.data }, ...messages.value];
     });
   }, []);
 
@@ -150,18 +151,20 @@ export default function ZeStream(props: PageProps) {
         <div ref={menu} style="height: 100%; overflow: auto;">
           {messages.value.map((msg, i) => (
             <Item index={i} selected={selected}>
-              {prepPreview(msg)}
+              {prepPreview(msg.content)}
             </Item>
           ))}
         </div>
 
-        <div style={{
-		overflow: "auto",
-		display: "grid",
-		gap: "1em",
-		gridTemplateColumns: "1fr" + (inEdit.value ? " 2fr" : ""),
-		height: "100%",
-	}}>
+        <div
+          style={{
+            overflow: "auto",
+            display: "grid",
+            gap: "1em",
+            gridTemplateColumns: "1fr" + (inEdit.value ? " 2fr" : ""),
+            height: "100%",
+          }}
+        >
           <div style="
 		overflow: auto;
 		display: grid;
@@ -170,13 +173,9 @@ export default function ZeStream(props: PageProps) {
 		gap: 1em;
 	">
             <div style="white-space: pre; height: 100%; overflow: auto;">
-              {
-                /*
-	    JSON.stringify(messages.value[selected.value], null, 4)
-	    */
-
-                messages.value[selected.value]
-              }
+              {messages.value.length > 0
+                ? messages.value[selected.value].content
+                : ""}
             </div>
             {inEdit.value && (
               <Editor
@@ -193,7 +192,6 @@ export default function ZeStream(props: PageProps) {
               {preview}
             </div>
           )}
-
         </div>
       </div>
     </div>
