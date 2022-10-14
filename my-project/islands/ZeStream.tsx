@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "preact/hooks";
-import { effect, useComputed, useSignal } from "@preact/signals";
+import { batch, effect, useComputed, useSignal } from "@preact/signals";
 
 import { Editor } from "../components/Editor.tsx";
 import { NewItem } from "../components/NewItem.tsx";
@@ -51,7 +51,14 @@ export default function ZeStream(props: PageProps) {
         break;
 
       case event.ctrlKey && event.key == "Backspace":
-        messages.value = messages.value.filter((_, i) => i !== selected.value);
+        batch(() => {
+          messages.value = messages.value.filter((_, i) =>
+            i !== selected.value
+          );
+          if (selected.value >= messages.value.length) {
+            selected.value = messages.value.length - 1;
+          }
+        });
         event.preventDefault();
         break;
 
@@ -138,7 +145,10 @@ export default function ZeStream(props: PageProps) {
       }
     });
     events.addEventListener("message", (e) => {
-      messages.value = [{ id: e.lastEventId, content: e.data }, ...messages.value];
+      messages.value = [
+        { id: e.lastEventId, content: e.data },
+        ...messages.value,
+      ];
     });
   }, []);
 
