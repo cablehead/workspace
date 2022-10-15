@@ -34,6 +34,10 @@ enum Commands {
 
         #[clap(long, value_parser)]
         source_id: Option<i64>,
+        #[clap(long, value_parser)]
+        topic: Option<String>,
+        #[clap(long, value_parser)]
+        attribute: Option<String>,
     },
 
     Cat {
@@ -60,8 +64,8 @@ fn put_one(
     source_id: Option<i64>,
     source: Option<String>,
     parent_id: Option<i64>,
-    topic: Option<String>,
-    attribute: Option<String>,
+    topic: &Option<String>,
+    attribute: &Option<String>,
     data: String,
 ) {
     let stamp: Vec<u8> = SystemTime::now()
@@ -137,10 +141,12 @@ fn main() {
             sse,
             last_id,
             source_id,
+            topic,
+            attribute,
         } => {
             if *follow {
                 for line in std::io::stdin().lock().lines() {
-                    put_one(&conn, None, None, None, None, None, line.unwrap());
+                    put_one(&conn, None, None, None, &None, &None, line.unwrap());
                 }
                 return;
             }
@@ -175,8 +181,8 @@ fn main() {
                         event.id,
                         Some(sse.to_string()),
                         None,
-                        None,
-                        None,
+                        &None,
+                        &None,
                         event.data,
                     );
                 }
@@ -185,7 +191,7 @@ fn main() {
 
             let mut data = String::new();
             std::io::stdin().read_to_string(&mut data).unwrap();
-            put_one(&conn, *source_id, None, None, None, None, data);
+            put_one(&conn, *source_id, None, None, topic, attribute, data);
         }
 
         Commands::Cat {
@@ -204,7 +210,7 @@ fn main() {
                 let mut q = conn
                     .prepare(
                         "SELECT
-                            id, source_id, topic, data, stamp
+                            id, source_id, topic, attribute, data, stamp
                         FROM stream
                         WHERE id > ?
                         ORDER BY id ASC",
@@ -221,10 +227,10 @@ fn main() {
                         source: None,
                         parent_id: None,
                         topic: q.read::<Option<String>>(2).unwrap(),
-                        attribute: None,
-                        data: q.read::<String>(3).unwrap(),
+                        attribute: q.read::<Option<String>>(3).unwrap(),
+                        data: q.read::<String>(4).unwrap(),
                         stamp: u128::from_le_bytes(
-                            q.read::<Vec<u8>>(4).unwrap().try_into().unwrap(),
+                            q.read::<Vec<u8>>(5).unwrap().try_into().unwrap(),
                         ),
                     };
 
