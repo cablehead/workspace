@@ -146,16 +146,25 @@ export default function ZeStream(props: PageProps) {
     });
     events.addEventListener("message", (e) => {
       let data = JSON.parse(e.data);
-      messages.value = [
-        data,
-        ...messages.value,
-      ];
+      if (data.topic == "xs" && data.attribute == ".delete") {
+        batch(() => {
+          messages.value = messages.value.filter((item, _) => item.id != data.source_id);
+          if (selected.value >= messages.value.length) {
+            selected.value = messages.value.length - 1;
+          }
+	  });
+        return;
+      }
+      messages.value = [data, ...messages.value];
     });
   }, []);
 
   return (
     <div style="display: flex; flex-direction: column; height:100%; overflow: auto">
-      <p>Status: {status} ID: { messages.value.length > 0 ? messages.value[selected.value].id: 0}</p>
+      <p>
+        Status: {status} ID:{" "}
+        {messages.value.length > 0 ? messages.value[selected.value].id : 0}
+      </p>
       <div style="display: grid; height:100%; grid-template-columns: 40ch 1fr; overflow: auto; gap: 1em;">
         {inNew.value && <NewItem onDone={getNewItem} />}
 
