@@ -145,8 +145,9 @@ export default function ZeStream(props: PageProps) {
       }
     });
     events.addEventListener("message", (e) => {
+      let data = JSON.parse(e.data);
       messages.value = [
-        { id: e.lastEventId, content: e.data },
+        data,
         ...messages.value,
       ];
     });
@@ -161,7 +162,7 @@ export default function ZeStream(props: PageProps) {
         <div ref={menu} style="height: 100%; overflow: auto;">
           {messages.value.map((msg, i) => (
             <Item index={i} selected={selected}>
-              {prepPreview(msg.content)}
+              {prepPreview(msg.data)}
             </Item>
           ))}
         </div>
@@ -184,7 +185,7 @@ export default function ZeStream(props: PageProps) {
 	">
             <div style="white-space: pre; height: 100%; overflow: auto;">
               {messages.value.length > 0
-                ? messages.value[selected.value].content
+                ? messages.value[selected.value].data
                 : ""}
             </div>
             {inEdit.value && (
