@@ -5,6 +5,8 @@ use std::io::Write;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use serde::{Deserialize, Serialize};
+
 use clap::{AppSettings, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -89,6 +91,23 @@ fn put_one(
     q.next().unwrap();
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct Item {
+    id: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_id: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parent_id: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    topic: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attribute: Option<String>,
+    data: String,
+    stamp: u128,
+}
+
 fn main() {
     let args = Args::parse();
     let conn = sqlite::open(&args.path).unwrap();
@@ -169,13 +188,20 @@ fn main() {
 
             loop {
                 let mut q = conn
-                    .prepare("SELECT id, data FROM stream WHERE id > ? ORDER BY id ASC")
+                    .prepare(
+                        "SELECT
+                            id, topic, data
+                        FROM stream
+                        WHERE id > ?
+                        ORDER BY id ASC",
+                    )
                     .unwrap()
                     .bind(1, last_id)
                     .unwrap();
                 while let sqlite::State::Row = q.next().unwrap() {
                     last_id = q.read(0).unwrap();
-                    let data = q.read::<String>(1).unwrap();
+                    let topic = q.read::<Option<String>>(1).unwrap();
+                    let data = q.read::<String>(2).unwrap();
 
                     match sse {
                         true => {
@@ -183,7 +209,20 @@ fn main() {
                             let data = data.trim().replace("\n", "\ndata: ");
                             println!("data: {}\n", data);
                         }
-                        false => println!("{}", data),
+
+                        false => {
+                            let item = Item {
+                                id: last_id,
+                                source_id: None,
+                                source: None,
+                                parent_id: None,
+                                topic: topic,
+                                attribute: None,
+                                data: data,
+                                stamp: 3,
+                            };
+                            println!("{}", serde_json::to_string(&item).unwrap());
+                        }
                     }
                 }
                 if !follow {
