@@ -31,6 +31,9 @@ enum Commands {
         // todo: only available with sse
         #[clap(long)]
         last_id: bool,
+
+        #[clap(long, value_parser)]
+        source_id: Option<i64>,
     },
 
     Cat {
@@ -54,18 +57,21 @@ enum Commands {
 
 fn put_one(
     conn: &sqlite::Connection,
-    source: Option<String>,
     source_id: Option<i64>,
+    source: Option<String>,
     parent_id: Option<i64>,
     topic: Option<String>,
     attribute: Option<String>,
     data: String,
 ) {
-    let stamp = &SystemTime::now()
+    let stamp: Vec<u8> = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis()
-        .to_le_bytes()[..];
+        .to_le_bytes()
+        .try_into()
+        .unwrap();
+
     let data = data.trim();
     let mut q = conn
         .prepare(
@@ -86,7 +92,7 @@ fn put_one(
         .unwrap()
         .bind(6, data.as_bytes())
         .unwrap()
-        .bind(7, stamp)
+        .bind(7, &*stamp)
         .unwrap();
     q.next().unwrap();
 }
@@ -130,6 +136,7 @@ fn main() {
             follow,
             sse,
             last_id,
+            source_id,
         } => {
             if *follow {
                 for line in std::io::stdin().lock().lines() {
@@ -165,8 +172,8 @@ fn main() {
                 while let Some(event) = parse_sse(&mut stdin) {
                     put_one(
                         &conn,
-                        Some(sse.to_string()),
                         event.id,
+                        Some(sse.to_string()),
                         None,
                         None,
                         None,
@@ -178,7 +185,7 @@ fn main() {
 
             let mut data = String::new();
             std::io::stdin().read_to_string(&mut data).unwrap();
-            put_one(&conn, None, None, None, None, None, data);
+            put_one(&conn, *source_id, None, None, None, None, data);
         }
 
         Commands::Cat {
@@ -197,7 +204,7 @@ fn main() {
                 let mut q = conn
                     .prepare(
                         "SELECT
-                            id, source_id, topic, data
+                            id, source_id, topic, data, stamp
                         FROM stream
                         WHERE id > ?
                         ORDER BY id ASC",
@@ -216,7 +223,9 @@ fn main() {
                         topic: q.read::<Option<String>>(2).unwrap(),
                         attribute: None,
                         data: q.read::<String>(3).unwrap(),
-                        stamp: 3,
+                        stamp: u128::from_le_bytes(
+                            q.read::<Vec<u8>>(4).unwrap().try_into().unwrap(),
+                        ),
                     };
 
                     match sse {
