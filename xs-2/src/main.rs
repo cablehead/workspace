@@ -141,7 +141,14 @@ fn main() {
             if let Some(sse) = sse {
                 if *last_id {
                     let mut q = conn
-                        .prepare("SELECT source_id FROM stream WHERE source = ? ORDER BY id DESC LIMIT 1")
+                        .prepare(
+                            "
+                            SELECT source_id
+                            FROM stream
+                            WHERE source = ?
+                            ORDER BY id DESC
+                            LIMIT 1",
+                        )
                         .unwrap()
                         .bind(1, sse.as_bytes())
                         .unwrap();
@@ -190,7 +197,7 @@ fn main() {
                 let mut q = conn
                     .prepare(
                         "SELECT
-                            id, topic, data
+                            id, source_id, topic, data
                         FROM stream
                         WHERE id > ?
                         ORDER BY id ASC",
@@ -200,29 +207,26 @@ fn main() {
                     .unwrap();
                 while let sqlite::State::Row = q.next().unwrap() {
                     last_id = q.read(0).unwrap();
-                    let topic = q.read::<Option<String>>(1).unwrap();
-                    let data = q.read::<String>(2).unwrap();
+
+                    let item = Item {
+                        id: last_id,
+                        source_id: q.read::<Option<i64>>(1).unwrap(),
+                        source: None,
+                        parent_id: None,
+                        topic: q.read::<Option<String>>(2).unwrap(),
+                        attribute: None,
+                        data: q.read::<String>(3).unwrap(),
+                        stamp: 3,
+                    };
 
                     match sse {
                         true => {
-                            println!("id: {}", last_id);
-                            let data = data.trim().replace("\n", "\ndata: ");
+                            println!("id: {}", item.id);
+                            let data = item.data.trim().replace("\n", "\ndata: ");
                             println!("data: {}\n", data);
                         }
 
-                        false => {
-                            let item = Item {
-                                id: last_id,
-                                source_id: None,
-                                source: None,
-                                parent_id: None,
-                                topic: topic,
-                                attribute: None,
-                                data: data,
-                                stamp: 3,
-                            };
-                            println!("{}", serde_json::to_string(&item).unwrap());
-                        }
+                        false => println!("{}", serde_json::to_string(&item).unwrap()),
                     }
                 }
                 if !follow {
