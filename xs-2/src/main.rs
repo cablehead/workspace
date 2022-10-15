@@ -234,14 +234,16 @@ fn main() {
                         ),
                     };
 
+                    let data = serde_json::to_string(&item).unwrap();
+
                     match sse {
                         true => {
                             println!("id: {}", item.id);
-                            let data = item.data.trim().replace("\n", "\ndata: ");
+                            let data = data.trim().replace("\n", "\ndata: ");
                             println!("data: {}\n", data);
                         }
 
-                        false => println!("{}", serde_json::to_string(&item).unwrap()),
+                        false => println!("{}", data),
                     }
                 }
                 if !follow {
