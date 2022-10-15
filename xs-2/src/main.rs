@@ -3,6 +3,8 @@ use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use clap::{AppSettings, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -50,21 +52,40 @@ enum Commands {
 
 fn put_one(
     conn: &sqlite::Connection,
-    data: String,
     source: Option<String>,
     source_id: Option<i64>,
+    parent_id: Option<i64>,
+    topic: Option<String>,
+    attribute: Option<String>,
+    data: String,
 ) {
+    let stamp = &SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+        .to_le_bytes()[..];
     let data = data.trim();
     let mut q = conn
-        .prepare("INSERT INTO stream (data, source, source_id) VALUES (?, ?, ?)")
+        .prepare(
+            "INSERT INTO stream (
+                source, source_id, parent_id, topic, attribute, data, stamp
+           ) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
         .unwrap()
-        .bind(1, data.as_bytes())
+        .bind(1, source.as_ref().map(|x| x.as_bytes()))
         .unwrap()
-        .bind(3, source_id)
+        .bind(2, source_id)
+        .unwrap()
+        .bind(3, parent_id)
+        .unwrap()
+        .bind(4, topic.as_ref().map(|x| x.as_bytes()))
+        .unwrap()
+        .bind(5, attribute.as_ref().map(|x| x.as_bytes()))
+        .unwrap()
+        .bind(6, data.as_bytes())
+        .unwrap()
+        .bind(7, stamp)
         .unwrap();
-    if let Some(source) = source {
-        q = q.bind(2, Some(source.as_bytes())).unwrap();
-    }
     q.next().unwrap();
 }
 
@@ -75,9 +96,13 @@ fn main() {
         "
         CREATE TABLE IF NOT EXISTS stream (
         id INTEGER PRIMARY KEY,
-        data INT NOT NULL,
+        source_id INTEGER,
         source TEXT,
-        source_id INT
+        parent_id INTEGER,
+        topic TEXT,
+        attribute TEXT,
+        data TEXT NOT NULL,
+        stamp BLOB NOT NULL
     )",
     )
     .unwrap();
@@ -89,7 +114,7 @@ fn main() {
         } => {
             if *follow {
                 for line in std::io::stdin().lock().lines() {
-                    put_one(&conn, line.unwrap(), None, None);
+                    put_one(&conn, None, None, None, None, None, line.unwrap());
                 }
                 return;
             }
@@ -112,14 +137,22 @@ fn main() {
 
                 let mut stdin = BufReader::new(std::io::stdin());
                 while let Some(event) = parse_sse(&mut stdin) {
-                    put_one(&conn, event.data, Some(sse.to_string()), event.id);
+                    put_one(
+                        &conn,
+                        Some(sse.to_string()),
+                        event.id,
+                        None,
+                        None,
+                        None,
+                        event.data,
+                    );
                 }
                 return;
             }
 
             let mut data = String::new();
             std::io::stdin().read_to_string(&mut data).unwrap();
-            put_one(&conn, data, None, None);
+            put_one(&conn, None, None, None, None, None, data);
         }
 
         Commands::Cat {
