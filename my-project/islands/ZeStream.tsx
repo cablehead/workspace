@@ -155,7 +155,7 @@ export default function ZeStream(props: PageProps) {
 
   return (
     <div style="display: flex; flex-direction: column; height:100%; overflow: auto">
-      <p>Status: {status} Selected: {selected.value}</p>
+      <p>Status: {status} ID: { messages.value.length > 0 ? messages.value[selected.value].id: 0}</p>
       <div style="display: grid; height:100%; grid-template-columns: 40ch 1fr; overflow: auto; gap: 1em;">
         {inNew.value && <NewItem onDone={getNewItem} />}
 
