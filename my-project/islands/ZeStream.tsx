@@ -51,13 +51,14 @@ export default function ZeStream(props: PageProps) {
         break;
 
       case event.ctrlKey && event.key == "Backspace":
-        batch(() => {
-          messages.value = messages.value.filter((_, i) =>
-            i !== selected.value
-          );
-          if (selected.value >= messages.value.length) {
-            selected.value = messages.value.length - 1;
-          }
+        let item = messages.value[selected.value];
+        const uri = `${props.source}?` + new URLSearchParams({
+          source_id: item.id,
+          topic: "xs",
+          attribute: ".delete",
+        });
+        fetch(uri, {
+          method: "PUT",
         });
         event.preventDefault();
         break;
@@ -148,11 +149,13 @@ export default function ZeStream(props: PageProps) {
       let data = JSON.parse(e.data);
       if (data.topic == "xs" && data.attribute == ".delete") {
         batch(() => {
-          messages.value = messages.value.filter((item, _) => item.id != data.source_id);
+          messages.value = messages.value.filter((item, _) =>
+            item.id != data.source_id
+          );
           if (selected.value >= messages.value.length) {
             selected.value = messages.value.length - 1;
           }
-	  });
+        });
         return;
       }
       messages.value = [data, ...messages.value];
