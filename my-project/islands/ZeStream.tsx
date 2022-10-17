@@ -22,7 +22,7 @@ export default function ZeStream(props: PageProps) {
   const status = useSignal(DISCONNECTED);
   const messages = useSignal([]);
   const inMap = useSignal(false);
-  const inEdit = useSignal(false);
+  const inEdit = useSignal(-1);
   const preview = useSignal("...");
 
   const selected = useSignal(0);
@@ -58,8 +58,8 @@ export default function ZeStream(props: PageProps) {
 
       // new item
       case event.ctrlKey && event.key == "Enter":
-        if (!inEdit.value) {
-          inEdit.value = !inEdit.value;
+        if (inEdit.value === -1) {
+          inEdit.value = 0;
           event.preventDefault();
         }
         break;
@@ -72,9 +72,8 @@ export default function ZeStream(props: PageProps) {
 
       // edit item
       case event.key == "Enter":
-        if (!inEdit.value) {
+        if (inEdit.value === -1) {
           console.log("hai");
-          // inEdit.value = !inEdit.value;
           event.preventDefault();
         }
         break;
@@ -82,7 +81,7 @@ export default function ZeStream(props: PageProps) {
   };
 
   const postEdit = (value) => {
-    inEdit.value = false;
+    inEdit.value = -1;
     if (value == "") return;
     const uri = `${props.source}`;
     fetch(uri, {
@@ -180,7 +179,7 @@ export default function ZeStream(props: PageProps) {
         {messages.value.length > 0 ? messages.value[selected.value].id : 0}
       </p>
       <div style="display: grid; height:100%; grid-template-columns: 40ch 1fr; overflow: auto; gap: 1em;">
-        {inEdit.value && <NewItem onDone={postEdit} />}
+        {inEdit.value !== -1 && <NewItem onDone={postEdit} />}
 
         <div ref={menu} style="height: 100%; overflow: auto;">
           {messages.value.map((msg, i) => (
