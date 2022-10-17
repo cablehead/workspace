@@ -21,7 +21,7 @@ export default function ZeStream(props: PageProps) {
 
   const status = useSignal(DISCONNECTED);
   const messages = useSignal([]);
-  const inEdit = useSignal(false);
+  const inMap = useSignal(false);
   const inNew = useSignal(false);
   const preview = useSignal("...");
 
@@ -56,6 +56,7 @@ export default function ZeStream(props: PageProps) {
         event.preventDefault();
         break;
 
+      // new item
       case event.ctrlKey && event.key == "Enter":
         if (!inNew.value) {
           inNew.value = !inNew.value;
@@ -63,9 +64,19 @@ export default function ZeStream(props: PageProps) {
         }
         break;
 
+      // map item
       case event.metaKey && event.key == "Enter":
-        inEdit.value = !inEdit.value;
+        inMap.value = !inMap.value;
         event.preventDefault();
+        break;
+
+      // edit item
+      case event.key == "Enter":
+        if (!inNew.value) {
+	console.log("hai");
+          // inNew.value = !inNew.value;
+          event.preventDefault();
+        }
         break;
     }
   };
@@ -114,7 +125,7 @@ export default function ZeStream(props: PageProps) {
       const id = messages.value.length > 0
         ? messages.value[selected.value].id
         : null;
-      if (!inEdit.value) return;
+      if (!inMap.value) return;
       const uri = `${props.source}pipe/${id}`;
       fetch(uri, {
         method: "POST",
@@ -184,7 +195,7 @@ export default function ZeStream(props: PageProps) {
             overflow: "auto",
             display: "grid",
             gap: "1em",
-            gridTemplateColumns: "1fr" + (inEdit.value ? " 2fr" : ""),
+            gridTemplateColumns: "1fr" + (inMap.value ? " 2fr" : ""),
             height: "100%",
           }}
         >
@@ -201,14 +212,14 @@ export default function ZeStream(props: PageProps) {
                 : ""}
             </div>
 
-            {inEdit.value && (
+            {inMap.value && (
               <Editor
                 command={command}
               />
             )}
           </div>
 
-          {inEdit.value && (
+          {inMap.value && (
             <div style="
 	    white-space: pre; height: 100%; overflow: auto;
 	    /* background-color: #efd5e5; */
