@@ -73,7 +73,7 @@ export default function ZeStream(props: PageProps) {
       // edit item
       case event.key == "Enter":
         if (inEdit.value === -1) {
-          console.log("hai");
+          inEdit.value = messages.value[selected.value].id;
           event.preventDefault();
         }
         break;
@@ -81,6 +81,24 @@ export default function ZeStream(props: PageProps) {
   };
 
   const postEdit = (value) => {
+    if (inEdit.value > 0) {
+      const item = messages.value.find((item) => item.id === inEdit.value);
+      inEdit.value = -1;
+      if (value === item.data) {
+        return;
+      }
+      const uri = `${props.source}?` + new URLSearchParams({
+        source_id: item.id,
+        topic: "xs",
+        attribute: ".update",
+      });
+      fetch(uri, {
+        method: "PUT",
+        body: value,
+      });
+      return;
+    }
+
     inEdit.value = -1;
     if (value == "") return;
     const uri = `${props.source}`;
@@ -168,6 +186,17 @@ export default function ZeStream(props: PageProps) {
         });
         return;
       }
+
+      if (data.topic == "xs" && data.attribute == ".update") {
+        messages.value = messages.value.map((item) => {
+          if (item.id == data.source_id) {
+            item.data = data.data;
+          }
+          return item;
+        });
+        return;
+      }
+
       messages.value = [data, ...messages.value];
     });
   }, []);
@@ -179,7 +208,14 @@ export default function ZeStream(props: PageProps) {
         {messages.value.length > 0 ? messages.value[selected.value].id : 0}
       </p>
       <div style="display: grid; height:100%; grid-template-columns: 40ch 1fr; overflow: auto; gap: 1em;">
-        {inEdit.value !== -1 && <NewItem onDone={postEdit} />}
+        {inEdit.value !== -1 && (
+          <NewItem
+            onDone={postEdit}
+            content={inEdit.value > 0
+              ? messages.value.find((item) => item.id === inEdit.value).data
+              : ""}
+          />
+        )}
 
         <div ref={menu} style="height: 100%; overflow: auto;">
           {messages.value.map((msg, i) => (

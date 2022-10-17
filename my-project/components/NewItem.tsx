@@ -6,6 +6,7 @@ export function NewItem(props) {
   useEffect(() => {
     textarea.current.focus();
     textarea.current.select();
+    textarea.current.value = props.content;
   }, []);
 
   const handler = (event) => {
