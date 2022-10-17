@@ -221,6 +221,12 @@ fn main() {
                 while let sqlite::State::Row = q.next().unwrap() {
                     last_id = q.read(0).unwrap();
 
+                    let stamp = q.read::<Vec<u8>>(5).unwrap();
+                    let stamp = match stamp.len() {
+                        0 => 0,
+                        _ => u128::from_le_bytes(stamp.try_into().unwrap()),
+                    };
+
                     let item = Item {
                         id: last_id,
                         source_id: q.read::<Option<i64>>(1).unwrap(),
@@ -229,9 +235,7 @@ fn main() {
                         topic: q.read::<Option<String>>(2).unwrap(),
                         attribute: q.read::<Option<String>>(3).unwrap(),
                         data: q.read::<String>(4).unwrap(),
-                        stamp: u128::from_le_bytes(
-                            q.read::<Vec<u8>>(5).unwrap().try_into().unwrap(),
-                        ),
+                        stamp: stamp,
                     };
 
                     let data = serde_json::to_string(&item).unwrap();
