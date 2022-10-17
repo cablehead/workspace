@@ -43,13 +43,6 @@ export default function ZeStream(props: PageProps) {
         event.preventDefault();
         break;
 
-      case event.ctrlKey && event.key == "Enter":
-        if (!inNew.value) {
-          inNew.value = !inNew.value;
-          event.preventDefault();
-        }
-        break;
-
       case event.ctrlKey && event.key == "Backspace":
         let item = messages.value[selected.value];
         const uri = `${props.source}?` + new URLSearchParams({
@@ -61,6 +54,13 @@ export default function ZeStream(props: PageProps) {
           method: "PUT",
         });
         event.preventDefault();
+        break;
+
+      case event.ctrlKey && event.key == "Enter":
+        if (!inNew.value) {
+          inNew.value = !inNew.value;
+          event.preventDefault();
+        }
         break;
 
       case event.metaKey && event.key == "Enter":
@@ -200,6 +200,7 @@ export default function ZeStream(props: PageProps) {
                 ? messages.value[selected.value].data
                 : ""}
             </div>
+
             {inEdit.value && (
               <Editor
                 command={command}
