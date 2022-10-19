@@ -190,6 +190,7 @@ export default function ZeStream(props: PageProps) {
       if (data.topic == "xs" && data.attribute == ".update") {
         messages.value = messages.value.map((item) => {
           if (item.id == data.source_id) {
+            item.id = data.id;
             item.data = data.data;
           }
           return item;
