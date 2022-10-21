@@ -26,7 +26,7 @@ enum Commands {
         #[clap(short, long, action, help = "Stream stdin, putting an item per line")]
         follow: bool,
         // todo: xor follow and sse
-        #[clap(short, long, value_parser, value_name = "SOURCE-NAME")]
+        #[clap(short, long, value_parser, value_name = "SOURCE_NAME")]
         sse: Option<String>,
         // todo: only available with sse
         #[clap(long)]
