@@ -10,10 +10,18 @@ const CONNECTING = "🟡 Connecting...";
 const CONNECTED = "🟢 Connected";
 
 function prepPreview(msg) {
-  return msg;
-  const plain = msg.types["public.utf8-plain-text"];
-  if (plain != null) return atob(plain);
-  return "n/a";
+  if (msg.topic == "bucket") {
+    let bucket = JSON.parse(msg.data);
+    return bucket.name;
+  }
+  return msg.data;
+}
+
+function prepMain(msg) {
+  if (msg.topic == "bucket") {
+    return JSON.stringify(msg.items);
+  }
+  return msg.data;
 }
 
 export default function ZeStream(props: PageProps) {
@@ -198,6 +206,33 @@ export default function ZeStream(props: PageProps) {
         return;
       }
 
+      if (data.topic == "bucket" && data.attribute == ".create") {
+        data.items = [];
+      }
+
+      if (data.topic == "bucket" && data.attribute == ".add") {
+        let bucket_id = JSON.parse(data.data).id;
+        batch(() => {
+          var patch = [];
+
+          for (let x in messages.value) {
+            let item = messages.value[x];
+            if (item.id == data.source_id) continue;
+            if (item.id == bucket_id) {
+              item.items.push(data.source_id);
+            }
+            patch.push(item);
+          }
+
+          messages.value = patch;
+
+          if (selected.value >= messages.value.length) {
+            selected.value = messages.value.length - 1;
+          }
+        });
+        return;
+      }
+
       messages.value = [data, ...messages.value];
     });
   }, []);
@@ -221,7 +256,7 @@ export default function ZeStream(props: PageProps) {
         <div ref={menu} style="height: 100%; overflow: auto;">
           {messages.value.map((msg, i) => (
             <Item index={i} selected={selected}>
-              {prepPreview(msg.data)}
+              {prepPreview(msg)}
             </Item>
           ))}
         </div>
@@ -244,7 +279,7 @@ export default function ZeStream(props: PageProps) {
 	">
             <div style="white-space: pre; height: 100%; overflow: auto;">
               {messages.value.length > 0
-                ? messages.value[selected.value].data
+                ? prepMain(messages.value[selected.value])
                 : ""}
             </div>
 
