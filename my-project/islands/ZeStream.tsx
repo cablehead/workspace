@@ -9,6 +9,8 @@ const DISCONNECTED = "🔴 Disconnected";
 const CONNECTING = "🟡 Connecting...";
 const CONNECTED = "🟢 Connected";
 
+var base = {};
+
 function prepPreview(msg) {
   if (msg.topic == "bucket") {
     let bucket = JSON.parse(msg.data);
@@ -19,7 +21,7 @@ function prepPreview(msg) {
 
 function prepMain(msg) {
   if (msg.topic == "bucket") {
-    return JSON.stringify(msg.items);
+    return msg.items.map((id) => base[id].data).join('\n');
   }
   return msg.data;
 }
@@ -183,6 +185,8 @@ export default function ZeStream(props: PageProps) {
     });
     events.addEventListener("message", (e) => {
       let data = JSON.parse(e.data);
+      base[data.id] = data;
+
       if (data.topic == "xs" && data.attribute == ".delete") {
         batch(() => {
           messages.value = messages.value.filter((item, _) =>
