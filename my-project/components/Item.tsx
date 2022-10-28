@@ -11,11 +11,15 @@ export function Item(props) {
         lineHeight: "2.5em",
         height: "2.5em",
         backgroundColor: isSelected.value && "#eee" || "#fff",
+        display: "grid",
+        gridTemplateColumns: "10ch 1fr",
       }}
       onClick={() => {
         props.selected.value = props.index;
       }}
-      {...props}
-    />
+    >
+      <div>{props.topic}</div>
+      <div>{props.noog}</div>
+    </div>
   );
 }

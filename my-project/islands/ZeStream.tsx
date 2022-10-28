@@ -21,7 +21,7 @@ function prepPreview(msg) {
 
 function prepMain(msg) {
   if (msg.topic == "bucket") {
-    return msg.items.map((id) => base[id].data).join('\n');
+    return msg.items.map((id) => base[id].data).join("\n");
   }
   return msg.data;
 }
@@ -259,9 +259,12 @@ export default function ZeStream(props: PageProps) {
 
         <div ref={menu} style="height: 100%; overflow: auto;">
           {messages.value.map((msg, i) => (
-            <Item index={i} selected={selected}>
-              {prepPreview(msg)}
-            </Item>
+            <Item
+              index={i}
+              topic={msg.topic}
+              selected={selected}
+              noog={prepPreview(msg)}
+            />
           ))}
         </div>
 
