@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 lmdb-rkv = "0.14.0"
+lmdb-sys = "0.8.0"
+scru128 = "2.2.0"
