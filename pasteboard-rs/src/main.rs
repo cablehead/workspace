@@ -1,63 +1,81 @@
-use cocoa::appkit::{NSPasteboard, NSRunningApplication};
-use cocoa::base::{nil};
-use cocoa::foundation::{NSArray, NSData, NSString};
-use objc::runtime::Object;
-use serde_json::json;
-use std::io::Write;
+use cocoa::appkit::{NSApp, NSPasteboard, NSPasteboardItem, NSRunningApplication, NSWorkspace};
+use cocoa::base::{id, nil};
+use cocoa::foundation::{NSArray, NSDictionary, NSRunLoop, NSString, NSDate};
+use std::collections::HashMap;
+use std::str;
+use std::slice;
 use std::thread;
 use std::time::Duration;
+use serde_json::json;
 
 fn main() {
-    let pasteboard = unsafe { NSPasteboard::generalPasteboard(nil) };
-    let mut change_count = unsafe { pasteboard.changeCount() };
+    unsafe {
+        let app = NSApp();
+        let pasteboard = NSPasteboard::generalPasteboard(app);
+        let mut change_count = pasteboard.changeCount();
 
-    loop {
-        thread::sleep(Duration::from_millis(100));
+        loop {
+            let current_change_count = pasteboard.changeCount();
+            if change_count != current_change_count {
+                let workspace = NSWorkspace::sharedWorkspace(nil);
+                let source_app: id = workspace.frontmostApplication();
+                let source = if source_app != nil {
+                    let bundle_identifier = source_app.bundleIdentifier();
+                    NSString::UTF8String(bundle_identifier) as *const u8
+                } else {
+                    "unknown".as_ptr()
+                };
 
-        let new_change_count = unsafe { pasteboard.changeCount() };
-        if change_count != new_change_count {
-            let source_app = unsafe { NSRunningApplication::frontmostApplication(nil) };
-            let source = if source_app != nil {
-                unsafe { NSString::UTF8String(source_app.bundleIdentifier()) }
-            } else {
-                "unknown"
-            };
+                let source = str::from_utf8(slice::from_raw_parts(source, strlen(source))).unwrap();
 
-            let mut row = json!({
-                "change": new_change_count,
-                "source": source,
-            });
+                let mut row = json!({
+                    "change": current_change_count,
+                    "source": source,
+                });
 
-            let mut types = json!({});
+                let nsarray_ptr = pasteboard.pasteboardItems();
+                let mut types = HashMap::new();
 
-            let pasteboard_items = unsafe { pasteboard.pasteboardItems() };
-            if pasteboard_items != nil {
-                let count = unsafe { NSArray::count(pasteboard_items as *mut Object) };
-                for i in 0..count {
-                    let item = unsafe { pasteboard_items.objectAtIndex(i) };
-                    let item_types = unsafe { item.types() };
-                    let item_types_count = unsafe { NSArray::count(item_types as *mut Object) };
+                if nsarray_ptr.count() != 0 {
+                    for i in 0..NSArray::count(nsarray_ptr) {
+                        let raw_item_ptr = NSArray::objectAtIndex(nsarray_ptr, i);
+                        let item = NSPasteboardItem::wrap(raw_item_ptr);
+                        let item_types = item.types();
 
-                    for j in 0..item_types_count {
-                        let x = unsafe { item_types.objectAtIndex(j) };
-                        let data = unsafe { pasteboard.dataForType(x) };
+                        for j in 0..NSArray::count(item_types) {
+                            let raw_type_ptr = NSArray::objectAtIndex(item_types, j);
+                            let ns_type = NSString::wrap(raw_type_ptr);
+                            let type_str = ns_type.UTF8String() as *const u8;
+                            let type_str = str::from_utf8(slice::from_raw_parts(type_str, ns_type.len())).unwrap();
 
-                        if data != nil {
-                            let base64_encoded = unsafe { NSData::base64EncodedStringWithOptions(data, 0) };
-                            let key = unsafe { NSString::UTF8String(x) };
-                            let value = unsafe { NSString::UTF8String(base64_encoded) };
-                            types[key] = value;
+                            let data = pasteboard.dataForType_(ns_type);
+                            if data != nil {
+                                let base64_encoded = data.base64EncodedStringWithOptions_(0);
+                                let base64_encoded = base64_encoded.UTF8String() as *const u8;
+                                let base64_encoded = str::from_utf8(slice::from_raw_parts(base64_encoded, base64_encoded.len())).unwrap();
+
+                                types.insert(type_str.to_string(), base64_encoded.to_string());
+                            }
                         }
                     }
                 }
+
+                row["types"] = json!(types);
+                let data = serde_json::to_string(&row).unwrap();
+                println!("{}", data);
+
+                change_count = current_change_count;
             }
 
-            row["types"] = types;
-            let data = serde_json::to_string(&row).unwrap();
-            print!("{}\n", data);
-            std::io::stdout().flush().unwrap();
+            thread::sleep(Duration::from_millis(100));
         }
-
-        change_count = new_change_count;
     }
+}
+
+fn strlen(ptr: *const u8) -> usize {
+    let mut len = 0;
+    while unsafe { *ptr.add(len) } != 0 {
+        len += 1;
+    }
+    len
 }
