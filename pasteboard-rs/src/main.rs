@@ -1,6 +1,7 @@
-use cocoa::appkit::{NSPasteboard, NSRunningApplication, NSWorkspace};
-use cocoa::base::{id, nil};
-use cocoa::foundation::{NSArray, NSData, NSDictionary, NSRunLoop, NSString};
+use cocoa::appkit::{NSPasteboard, NSRunningApplication};
+use cocoa::base::{nil};
+use cocoa::foundation::{NSArray, NSData, NSString};
+use objc::runtime::Object;
 use serde_json::json;
 use std::io::Write;
 use std::thread;
@@ -15,9 +16,9 @@ fn main() {
 
         let new_change_count = unsafe { pasteboard.changeCount() };
         if change_count != new_change_count {
-            let source_app = unsafe { NSWorkspace::sharedWorkspace(nil).frontmostApplication() };
+            let source_app = unsafe { NSRunningApplication::frontmostApplication(nil) };
             let source = if source_app != nil {
-                unsafe { source_app.bundleIdentifier().UTF8String() }
+                unsafe { NSString::UTF8String(source_app.bundleIdentifier()) }
             } else {
                 "unknown"
             };
@@ -31,20 +32,20 @@ fn main() {
 
             let pasteboard_items = unsafe { pasteboard.pasteboardItems() };
             if pasteboard_items != nil {
-                let count = unsafe { pasteboard_items.count() };
+                let count = unsafe { NSArray::count(pasteboard_items as *mut Object) };
                 for i in 0..count {
                     let item = unsafe { pasteboard_items.objectAtIndex(i) };
                     let item_types = unsafe { item.types() };
-                    let item_types_count = unsafe { item_types.count() };
+                    let item_types_count = unsafe { NSArray::count(item_types as *mut Object) };
 
                     for j in 0..item_types_count {
                         let x = unsafe { item_types.objectAtIndex(j) };
                         let data = unsafe { pasteboard.dataForType(x) };
 
                         if data != nil {
-                            let base64_encoded = unsafe { data.base64EncodedStringWithOptions(0) };
-                            let key = unsafe { x.UTF8String() };
-                            let value = unsafe { base64_encoded.UTF8String() };
+                            let base64_encoded = unsafe { NSData::base64EncodedStringWithOptions(data, 0) };
+                            let key = unsafe { NSString::UTF8String(x) };
+                            let value = unsafe { NSString::UTF8String(base64_encoded) };
                             types[key] = value;
                         }
                     }
