@@ -1,6 +1,7 @@
-use cocoa::appkit::{NSApp, NSPasteboard, NSPasteboardItem, NSRunningApplication, NSWorkspace};
+use cocoa::appkit::{NSApp, NSPasteboard, NSPasteboardItem, NSRunningApplication};
 use cocoa::base::{id, nil};
-use cocoa::foundation::{NSArray, NSDictionary, NSRunLoop, NSString, NSDate};
+use cocoa::foundation::{NSArray, NSString};
+use objc::runtime::Object;
 use std::collections::HashMap;
 use std::str;
 use std::slice;
@@ -17,10 +18,10 @@ fn main() {
         loop {
             let current_change_count = pasteboard.changeCount();
             if change_count != current_change_count {
-                let workspace = NSWorkspace::sharedWorkspace(nil);
-                let source_app: id = workspace.frontmostApplication();
+                let source_app: id = msg_send![class!(NSWorkspace), sharedWorkspace];
+                let source_app: id = msg_send![source_app, frontmostApplication];
                 let source = if source_app != nil {
-                    let bundle_identifier = source_app.bundleIdentifier();
+                    let bundle_identifier: id = msg_send![source_app, bundleIdentifier];
                     NSString::UTF8String(bundle_identifier) as *const u8
                 } else {
                     "unknown".as_ptr()
@@ -36,21 +37,21 @@ fn main() {
                 let nsarray_ptr = pasteboard.pasteboardItems();
                 let mut types = HashMap::new();
 
-                if nsarray_ptr.count() != 0 {
+                if NSArray::count(nsarray_ptr) != 0 {
                     for i in 0..NSArray::count(nsarray_ptr) {
-                        let raw_item_ptr = NSArray::objectAtIndex(nsarray_ptr, i);
-                        let item = NSPasteboardItem::wrap(raw_item_ptr);
+                        let raw_item_ptr: *mut Object = msg_send![nsarray_ptr, objectAtIndex:i];
+                        let item = NSPasteboardItem::new(raw_item_ptr);
                         let item_types = item.types();
 
                         for j in 0..NSArray::count(item_types) {
-                            let raw_type_ptr = NSArray::objectAtIndex(item_types, j);
-                            let ns_type = NSString::wrap(raw_type_ptr);
+                            let raw_type_ptr: id = msg_send![item_types, objectAtIndex:j];
+                            let ns_type = NSString::new(raw_type_ptr);
                             let type_str = ns_type.UTF8String() as *const u8;
                             let type_str = str::from_utf8(slice::from_raw_parts(type_str, ns_type.len())).unwrap();
 
-                            let data = pasteboard.dataForType_(ns_type);
+                            let data: id = msg_send![pasteboard, dataForType:ns_type];
                             if data != nil {
-                                let base64_encoded = data.base64EncodedStringWithOptions_(0);
+                                let base64_encoded: id = msg_send![data, base64EncodedStringWithOptions:0];
                                 let base64_encoded = base64_encoded.UTF8String() as *const u8;
                                 let base64_encoded = str::from_utf8(slice::from_raw_parts(base64_encoded, base64_encoded.len())).unwrap();
 
